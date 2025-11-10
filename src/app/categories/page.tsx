@@ -1,113 +1,125 @@
 "use client";
-import { api } from "@/lib/api";
-import { useEffect, useState } from "react";
 
-type Category = {
-  id: string;
-  name: string;
-  type: "INCOME" | "EXPENSE";
-  description?: string | null;
-  isSystem: boolean;
-};
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import type { Category, CategoryType } from "@/types";
 
 export default function CategoriesPage() {
-  const [items, setItems] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
+  const [type, setType] = useState<CategoryType>("EXPENSE");
+  const [list, setList] = useState<Category[]>([]);
   const [name, setName] = useState("");
-  const [type, setType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
-  const [description, setDescription] = useState("");
+  const [desc, setDesc] = useState("");
+  const [err, setErr] = useState("");
 
   async function load() {
+    setErr("");
     try {
-      setLoading(true);
-      const data = await api<{ categories: Category[] }>("/categories", { auth: true });
-      setItems(data.categories ?? (data as any)); // por si tu endpoint devuelve array plano
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
+      const data = await api<Category[]>(`/categories?type=${type}`);
+      setList(data ?? []);
+    } catch (e:any) { setErr(e.message); }
   }
 
-  useEffect(() => { load(); }, []);
-
   async function create() {
+    setErr("");
     try {
-      setErr(null);
       await api("/categories", {
-        auth: true,
         method: "POST",
-        body: JSON.stringify({ name, type, description }),
+        body: JSON.stringify({ name: name.trim(), type, description: desc || null }),
       });
-      setName(""); setDescription("");
+      setName(""); setDesc("");
       await load();
-    } catch (e: any) {
-      setErr(e.message);
-    }
+    } catch (e:any) { setErr(e.message); }
   }
 
   async function remove(id: string) {
-    if (!confirm("¿Eliminar categoría?")) return;
+    setErr("");
     try {
-      await api(`/categories/${id}`, { auth: true, method: "DELETE" });
+      await api(`/categories/${id}`, { method: "DELETE" });
       await load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e:any) { setErr(e.message); }
   }
 
+  useEffect(()=>{ load(); }, [type]);
+
   return (
-    <section className="space-y-6">
-      <h1 className="text-xl font-semibold">Categorías</h1>
+    <div className="mx-auto max-w-5xl px-4 py-10 space-y-8">
+      <h1 className="text-3xl font-display font-semibold">Categorías</h1>
 
-      <div className="rounded border bg-white p-4 grid sm:grid-cols-3 gap-3 items-end">
-        <div>
-          <label className="block text-sm mb-1">Nombre</label>
-          <input value={name} onChange={e=>setName(e.target.value)} className="border rounded px-2 py-1 w-full" />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Tipo</label>
-          <select value={type} onChange={e=>setType(e.target.value as any)} className="border rounded px-2 py-1 w-full">
-            <option value="EXPENSE">Gasto</option>
-            <option value="INCOME">Ingreso</option>
-          </select>
-        </div>
-        <div className="sm:col-span-3">
-          <label className="block text-sm mb-1">Descripción</label>
-          <input value={description} onChange={e=>setDescription(e.target.value)} className="border rounded px-2 py-1 w-full" />
-        </div>
-        <button onClick={create} className="px-4 py-2 bg-black text-white rounded">Crear</button>
-        {err && <p className="text-sm text-red-600 sm:col-span-2">{err}</p>}
-      </div>
+      {/* Crear */}
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="md:col-span-1">
+            <label className="text-sm text-slate-300">Nombre</label>
+            <input
+              value={name}
+              onChange={(e)=>setName(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
+            />
+          </div>
 
-      <div className="rounded border bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-          <tr>
-            <th className="text-left p-2">Nombre</th>
-            <th className="text-left p-2">Tipo</th>
-            <th className="text-left p-2">Sistema</th>
-            <th className="p-2"></th>
-          </tr>
-          </thead>
-          <tbody>
-          {loading && <tr><td className="p-2">Cargando...</td></tr>}
-          {items.map(c => (
-            <tr key={c.id} className="border-t">
-              <td className="p-2">{c.name}</td>
-              <td className="p-2">{c.type}</td>
-              <td className="p-2">{c.isSystem ? "Sí" : "No"}</td>
-              <td className="p-2 text-right">
-                {!c.isSystem && (
-                  <button onClick={()=>remove(c.id)} className="text-red-600 hover:underline">Eliminar</button>
-                )}
-              </td>
-            </tr>
-          ))}
-          {!loading && items.length === 0 && <tr><td className="p-2">Sin categorías.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </section>
+          <div>
+            <label className="text-sm text-slate-300">Tipo</label>
+            <select
+              value={type}
+              onChange={(e)=>setType(e.target.value as CategoryType)}
+              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
+            >
+              <option value="EXPENSE">Gasto</option>
+              <option value="INCOME">Ingreso</option>
+            </select>
+          </div>
+
+          <div className="md:col-span-1">
+            <label className="text-sm text-slate-300">Descripción</label>
+            <input
+              value={desc}
+              onChange={(e)=>setDesc(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={create}
+          disabled={name.trim().length < 2}
+          className="mt-4 rounded-xl bg-fuchsia-600 px-4 py-2 font-medium hover:bg-fuchsia-500 disabled:opacity-50"
+        >
+          Crear
+        </button>
+        {!!err && <p className="mt-2 text-sm text-rose-300">{err}</p>}
+      </section>
+
+      {/* Lista */}
+      <section className="grid gap-3">
+        {list.map(c => (
+          <div key={c.id}
+               className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3 ring-1 ring-white/10">
+            <div>
+              <p className="font-medium">{c.name}</p>
+              <p className="text-xs text-slate-400">
+                {c.type==="EXPENSE"?"Gasto":"Ingreso"} {c.isSystem ? "• Sistema" : "• Tuya"}
+                {c.description ? ` • ${c.description}` : ""}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {!c.isSystem && (
+                <button
+                  onClick={()=>remove(c.id)}
+                  className="rounded-xl bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+                >
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {list.length===0 && (
+          <div className="rounded-xl bg-white/5 px-4 py-6 text-slate-300 ring-1 ring-white/10">
+            No hay categorías para este tipo.
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

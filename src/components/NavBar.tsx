@@ -1,11 +1,11 @@
-// components/Navbar.tsx
+// src/components/Navbar.tsx
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from 'react';
-import { GoogleLoginButton, logout } from '@/components/AuthButtons';
-import { fetchMe } from '@/utils/session';
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import GoogleLoginButton from "@/components/GoogleLoginButton";
+import { fetchMe, doLogout } from "@/utils/session";
 
 const links = [
   { href: "/", label: "Inicio" },
@@ -14,30 +14,24 @@ const links = [
   { href: "/categories", label: "Categorías" },
 ];
 
-export function NavAuth() {
-  const [me, setMe] = useState<any>(null);
-
-  useEffect(() => {
-    fetchMe().then(setMe).catch(() => setMe(null));
-  }, []);
-
-  if (!me) return <GoogleLoginButton />;
-
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-slate-200">Hola, {me.email}</span>
-      <button
-        onClick={logout}
-        className="rounded-xl bg-white/10 px-3 py-2 hover:bg-white/20"
-      >
-        Cerrar sesión
-      </button>
-    </div>
-  );
-}
-
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [me, setMe] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMe()
+      .then((u) => setMe(u))
+      .catch(() => setMe(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const logout = async () => {
+    await doLogout().catch(() => {});
+    setMe(null);
+    router.refresh(); // refresca layout
+  };
 
   return (
     <header className="sticky top-0 z-40">
@@ -45,7 +39,6 @@ export default function Navbar() {
         <div className="flex items-center justify-between gap-4">
           {/* Marca */}
           <Link href="/" className="flex items-center gap-2">
-            {/* Logo simple */}
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-tr from-fuchsia-500 to-indigo-500 font-semibold">
               F
             </span>
@@ -75,15 +68,23 @@ export default function Navbar() {
             })}
           </ul>
 
-          {/* Acciones (placeholder) */}
-          <div className="flex items-center gap-2">
-            {/* Si tienes sesión, muestra nombre / botón salir */}
-            <Link
-              href="/login"
-              className="rounded-xl bg-fuchsia-600 px-3 py-2 text-sm font-medium text-white hover:bg-fuchsia-500 transition"
-            >
-              Iniciar sesión
-            </Link>
+          {/* Auth */}
+          <div className="flex items-center gap-3">
+            {loading ? null : me ? (
+              <>
+                <span className="text-slate-200 text-sm">
+                  Hola, <b>{me.email}</b>
+                </span>
+                <button
+                  onClick={logout}
+                  className="rounded-xl bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20"
+                >
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <GoogleLoginButton />
+            )}
           </div>
         </div>
       </nav>
