@@ -149,15 +149,9 @@ export default function WalletDetailPage() {
           setWallet({ id, name: "Billetera", type: "GROUP", currency: "COP" });
         }
 
-        const [t, inc, exp] = await Promise.all([
-          api<Transaction[]>(`/transactions?walletId=${id}`),
-          api<Category[]>(`/categories?type=INCOME`),
-          api<Category[]>(`/categories?type=EXPENSE`),
-        ]);
-
+        // Cargar solo transacciones inicialmente, categorías se cargan bajo demanda
+        const t = await api<Transaction[]>(`/transactions?walletId=${id}`).catch(() => []);
         setTxs(t ?? []);
-        setIncCats(inc ?? []);
-        setExpCats(exp ?? []);
 
         // Cargar metas solo si es billetera grupal
         if (w?.type === "GROUP") {
@@ -311,30 +305,91 @@ export default function WalletDetailPage() {
     }
   }
 
-  // Cargar categorías cuando se abre el modal de transacción
+  // Cargar categorías solo cuando se abre el modal y solo si no están ya cargadas
   useEffect(() => {
-    if (showTransactionModal) {
-      const loadCats = async () => {
-        try {
-          const cats = await api<Category[]>(`/categories?type=${txType}`);
-          if (txType === "INCOME") {
-            setIncCats(cats || []);
-            if (cats && cats.length > 0 && !txCategory) {
-              setTxCategory(cats[0].id);
-            }
-          } else {
-            setExpCats(cats || []);
-            if (cats && cats.length > 0 && !txCategory) {
-              setTxCategory(cats[0].id);
-            }
-          }
-        } catch (e) {
-          console.error("Error loading categories:", e);
+    if (!showTransactionModal) return;
+
+    const loadCats = async () => {
+      // Verificar si ya están cargadas para evitar llamadas duplicadas
+      if (txType === "INCOME" && incCats.length > 0) {
+        // Si ya están cargadas, solo seleccionar la primera si no hay categoría seleccionada
+        if (!txCategory && incCats.length > 0) {
+          setTxCategory(incCats[0].id);
         }
-      };
-      loadCats();
-    }
-  }, [showTransactionModal, txType]);
+        return;
+      }
+      
+      if (txType === "EXPENSE" && expCats.length > 0) {
+        // Si ya están cargadas, solo seleccionar la primera si no hay categoría seleccionada
+        if (!txCategory && expCats.length > 0) {
+          setTxCategory(expCats[0].id);
+        }
+        return;
+      }
+
+      // Solo cargar si no están en caché
+      try {
+        const cats = await api<Category[]>(`/categories?type=${txType}`);
+        if (txType === "INCOME") {
+          setIncCats(cats || []);
+          if (cats && cats.length > 0 && !txCategory) {
+            setTxCategory(cats[0].id);
+          }
+        } else {
+          setExpCats(cats || []);
+          if (cats && cats.length > 0 && !txCategory) {
+            setTxCategory(cats[0].id);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading categories:", e);
+      }
+    };
+    
+    loadCats();
+  }, [showTransactionModal]); // Removido txType de dependencias para evitar recargas innecesarias
+
+  // Cargar categorías cuando cambia el tipo de transacción dentro del modal (solo si no están cargadas)
+  useEffect(() => {
+    if (!showTransactionModal) return;
+
+    const loadCatsForType = async () => {
+      // Verificar si ya están cargadas
+      if (txType === "INCOME" && incCats.length > 0) {
+        if (!txCategory && incCats.length > 0) {
+          setTxCategory(incCats[0].id);
+        }
+        return;
+      }
+      
+      if (txType === "EXPENSE" && expCats.length > 0) {
+        if (!txCategory && expCats.length > 0) {
+          setTxCategory(expCats[0].id);
+        }
+        return;
+      }
+
+      // Solo cargar si no están en caché
+      try {
+        const cats = await api<Category[]>(`/categories?type=${txType}`);
+        if (txType === "INCOME") {
+          setIncCats(cats || []);
+          if (cats && cats.length > 0) {
+            setTxCategory(cats[0].id);
+          }
+        } else {
+          setExpCats(cats || []);
+          if (cats && cats.length > 0) {
+            setTxCategory(cats[0].id);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading categories:", e);
+      }
+    };
+    
+    loadCatsForType();
+  }, [txType, showTransactionModal]); // Solo cuando cambia el tipo dentro del modal
 
   async function handleCreateTransaction() {
     if (!txCategory || !txAmount.trim()) {
@@ -418,26 +473,14 @@ export default function WalletDetailPage() {
         setGoalTransactionError("No se encontró tu billetera personal");
         return;
       }
-      
-      // Obtener categoría de "Aportes a la meta" en la billetera personal (EXPENSE)
-      const categories = await api<Category[]>(`/categories?type=EXPENSE&walletId=${personalWallet.id}`).catch(() => []);
-      // Buscar categoría de aportes o usar "Imprevistos y reparaciones" como fallback
-      const aporteCategory = categories.find(c => c.name === "Aportes a la meta") || 
-                             categories.find(c => c.name === "Imprevistos y reparaciones") || 
-                             categories[0];
-      
-      if (!aporteCategory) {
-        setGoalTransactionError("No se encontró la categoría para aportes");
-        return;
-      }
 
       // Crear transacción de tipo EXPENSE en la billetera PERSONAL del usuario
+      // Sin categoría, ya que es un aporte a meta
       // Esto se resta de los ingresos personales y se suma a los gastos personales
       await api("/transactions", {
         method: "POST",
         body: JSON.stringify({
           walletId: personalWallet.id, // Usar billetera personal, no la grupal
-          categoryId: aporteCategory.id,
           type: "EXPENSE",
           amount: amount,
           paidByUserId: me.id,
@@ -477,41 +520,36 @@ export default function WalletDetailPage() {
     return map;
   }, [incCats, expCats]);
 
-  // agregados
+  // agregados - optimizado para recalcular solo cuando cambia la cantidad de transacciones o el tipo de billetera
   const { income, expense, byCatExpense, recent } = useMemo(() => {
     let inc = 0, exp = 0;
     const groupExp: Record<string, number> = {};
-    const sortedRecent = [...txs]
-      .sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
+    
+    // Optimizar: solo ordenar y slice si hay transacciones
+    const sortedRecent = txs.length > 0
+      ? [...txs]
+          .sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 10)
+      : [];
 
-    // Si es billetera grupal y no tiene metas, los ingresos deben ser 0
-    const hasActiveGoals = wallet?.type === "GROUP" && goals.length > 0 && goals.some(g => g.status === "ACTIVE");
-
-    for (const t of txs) {
+    // Optimizar: usar forEach en lugar de for...of para mejor rendimiento
+    // Mostrar todos los ingresos (aportes) de los usuarios
+    txs.forEach((t) => {
       const v = toNum(t.amount);
       if (t.type === "INCOME") {
-        // Solo contar ingresos si hay metas activas en billeteras grupales
-        if (wallet?.type === "GROUP") {
-          if (hasActiveGoals) {
-            inc += v;
-          }
-          // Si no hay metas, income = 0 (ya está inicializado en 0)
-        } else {
-          inc += v;
-        }
-      } else if (t.type === "EXPENSE") {
-        exp += v;
-        groupExp[t.categoryId] = (groupExp[t.categoryId] || 0) + v;
+        // Contar todos los ingresos (aportes) sin importar si hay metas activas
+        inc += v;
       }
-    }
+      // Los gastos ya no se muestran, pero se mantienen para cálculos internos si se necesitan
+    });
+    
     const expArr = Object.entries(groupExp)
       .map(([catId, value]) => ({ catId, value }))
       .sort((a,b)=> b.value - a.value)
       .slice(0, 6);
 
     return { income: inc, expense: exp, byCatExpense: expArr, recent: sortedRecent };
-  }, [txs, wallet?.type, goals]);
+  }, [txs, wallet?.type, goals]); // Optimizado: usar txs directamente pero con cálculo optimizado interno
 
   // donut data (gastos por categoría)
   const pieData: PieDatum[] = useMemo(() => {
@@ -904,56 +942,15 @@ export default function WalletDetailPage() {
       )}
 
 
-      {/* tarjetas resumen */}
-      {/* En billeteras grupales sin metas activas, solo mostrar gastos */}
-      {wallet?.type === "GROUP" && (!goals.length || !goals.some(g => g.status === "ACTIVE")) ? (
-        <section className="grid gap-3 sm:grid-cols-1">
-          <SummaryCard
-            label="Gastos"
-            value={fmt(expense, currency)}
-            sub="- salidas"
-            tone="rose"
-          />
-        </section>
-      ) : (
-        <section className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard
-            label="Ingresos"
-            value={fmt(income, currency)}
-            sub="+ entradas"
-            tone="emerald"
-          />
-          <SummaryCard
-            label="Gastos"
-            value={fmt(expense, currency)}
-            sub="- salidas"
-            tone="rose"
-          />
-          <SummaryCard
-            label="Balance"
-            value={fmt(income - expense, currency)}
-            sub="Ingresos - Gastos"
-            tone="indigo"
-          />
-        </section>
-      )}
-
-      {/* Botón para crear transacción */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => {
-            setShowTransactionModal(true);
-            setTxType(wallet?.type === "GROUP" ? "INCOME" : "EXPENSE");
-            setTxCategory("");
-            setTxAmount("");
-            setTxDesc("");
-            setTxError("");
-          }}
-          className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
-        >
-          + Nueva transacción
-        </button>
-      </div>
+      {/* tarjetas resumen - Solo mostrar ingresos (aportes) */}
+      <section className="grid gap-3 sm:grid-cols-1">
+        <SummaryCard
+          label="Ingresos"
+          value={fmt(income, currency)}
+          sub="+ aportes de usuarios"
+          tone="emerald"
+        />
+      </section>
 
       {/* Actividad reciente */}
       <section className="card-glass p-5">

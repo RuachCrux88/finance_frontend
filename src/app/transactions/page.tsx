@@ -253,11 +253,7 @@ export default function TransactionsPage() {
                     (async () => {
                       try {
                         const list = await api<Category[]>(`/categories?type=${newType}`);
-                        if (newType === "EXPENSE") {
-                          setExpCats(list ?? []);
-                        } else {
-                          setIncCats(list ?? []);
-                        }
+                        setCats(list ?? []);
                       } catch {}
                     })();
                   }}

@@ -23,7 +23,7 @@ export type Wallet = {
 };
 export type Category = { id: string; name: string; type: CategoryType; description?: string; isSystem?: boolean };
 export type Transaction = {
-  id: string; walletId: string; categoryId: string;
+  id: string; walletId: string; categoryId?: string;
   type: TxType; amount: string; date: string; description?: string;
   category?: Category;
   paidBy?: { id: string; name?: string; email: string };

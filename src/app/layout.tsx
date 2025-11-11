@@ -6,6 +6,11 @@ import Navbar from "@/components/NavBar"; // lo creamos en el paso 2
 export const metadata: Metadata = {
   title: "Finance",
   description: "Finanzas personales y grupales",
+  icons: {
+    icon: "/coin-f.png",
+    shortcut: "/coin-f.png",
+    apple: "/coin-f.png",
+  },
 };
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });

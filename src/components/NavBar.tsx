@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
@@ -39,9 +40,15 @@ export default function Navbar() {
         <div className="flex items-center justify-between gap-4">
           {/* Marca */}
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-orange text-white font-bold text-sm">
-              F
-            </span>
+            <div className="relative h-8 w-8 flex-shrink-0">
+              <Image
+                src="/coin-f.png"
+                alt="Finance Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
             <span className="font-display text-lg font-semibold tracking-wide text-warm-dark">
               Finance
             </span>

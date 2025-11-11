@@ -1,9 +1,9 @@
 // app/auth/callback/page.tsx (Next 13+/App Router)
 'use client';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function OAuthCallback() {
+function CallbackContent() {
   const params = useSearchParams();
   const router = useRouter();
 
@@ -16,4 +16,12 @@ export default function OAuthCallback() {
   }, [params, router]);
 
   return <p className="text-white p-6">Iniciando sesión…</p>;
+}
+
+export default function OAuthCallback() {
+  return (
+    <Suspense fallback={<p className="text-white p-6">Cargando…</p>}>
+      <CallbackContent />
+    </Suspense>
+  );
 }
