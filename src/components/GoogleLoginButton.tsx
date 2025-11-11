@@ -9,7 +9,7 @@ export default function GoogleLoginButton() {
   return (
     <button
       onClick={onClick}
-      className="rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-fuchsia-500/20 hover:opacity-90 transition"
+      className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
     >
       Iniciar con Google
     </button>

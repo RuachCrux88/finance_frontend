@@ -1,10 +1,10 @@
 // src/utils/session.ts
-import { apiFetch } from './http';
+import { api } from '@/lib/api';
 
 export async function fetchMe() {
-  return apiFetch('/auth/me');
+  return api('/auth/me');
 }
 
 export async function doLogout() {
-  return apiFetch('/auth/logout', { method: 'POST' });
+  return api('/auth/logout', { method: 'POST' });
 }

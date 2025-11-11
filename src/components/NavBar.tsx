@@ -34,31 +34,31 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40">
-      <nav className="mx-auto mt-3 max-w-6xl rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md shadow-lg shadow-fuchsia-500/10">
+    <header className="sticky top-0 z-40 mb-6">
+      <nav className="mx-auto max-w-6xl rounded-2xl card-glass px-5 py-3">
         <div className="flex items-center justify-between gap-4">
           {/* Marca */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-tr from-fuchsia-500 to-indigo-500 font-semibold">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-orange text-white font-bold text-sm">
               F
             </span>
-            <span className="font-display text-lg font-semibold tracking-wide">
+            <span className="font-display text-lg font-semibold tracking-wide text-warm-dark">
               Finance
             </span>
           </Link>
 
           {/* Links */}
-          <ul className="hidden md:flex items-center gap-4 text-sm">
+          <ul className="hidden md:flex items-center gap-2 text-sm">
             {links.map((l) => {
               const active = pathname === l.href;
               return (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className={`rounded-xl px-3 py-2 transition ${
+                    className={`rounded-lg px-3 py-1.5 transition ${
                       active
-                        ? "bg-white/15 text-white"
-                        : "text-slate-200 hover:text-white hover:bg-white/10"
+                        ? "bg-[#E8E2DE] text-warm-dark font-medium"
+                        : "text-warm hover:text-warm-dark hover:bg-[#E8E2DE]/50"
                     }`}
                   >
                     {l.label}
@@ -69,17 +69,24 @@ export default function Navbar() {
           </ul>
 
           {/* Auth */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {loading ? null : me ? (
               <>
-                <span className="text-slate-200 text-sm">
-                  Hola, <b>{me.email}</b>
+                <span className="text-warm text-sm hidden sm:inline">
+                  Hola, <b className="font-medium text-warm-dark">{me.name || me.email}</b>
                 </span>
+                <Link
+                  href="/settings"
+                  className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-sm text-warm-dark hover:bg-[#E8E2DE]/50 transition flex items-center gap-1.5"
+                >
+                  <span>⚙️</span>
+                  <span className="hidden sm:inline">Configuración</span>
+                </Link>
                 <button
                   onClick={logout}
-                  className="rounded-xl bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20"
+                  className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-sm text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cerrar sesión
+                  Salir
                 </button>
               </>
             ) : (

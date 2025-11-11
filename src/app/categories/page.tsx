@@ -10,116 +10,303 @@ export default function CategoriesPage() {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   async function load() {
     setErr("");
+    setLoading(true);
     try {
       const data = await api<Category[]>(`/categories?type=${type}`);
       setList(data ?? []);
-    } catch (e:any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function create() {
     setErr("");
+    if (!name.trim() || name.trim().length < 2) {
+      setErr("El nombre debe tener al menos 2 caracteres");
+      return;
+    }
     try {
       await api("/categories", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), type, description: desc || null }),
+        body: JSON.stringify({ name: name.trim(), type, description: desc.trim() || null }),
       });
-      setName(""); setDesc("");
+      setName("");
+      setDesc("");
       await load();
-    } catch (e:any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+    }
+  }
+
+  async function update(id: string) {
+    setErr("");
+    const cat = list.find((c) => c.id === id);
+    if (!cat) return;
+
+    try {
+      const updateData: any = {};
+      if (!cat.isSystem && editName.trim() && editName.trim() !== cat.name) {
+        updateData.name = editName.trim();
+      }
+      if (editDesc !== (cat.description || "")) {
+        updateData.description = editDesc.trim() || null;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await api(`/categories/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(updateData),
+        });
+      }
+      setEditingId(null);
+      setEditName("");
+      setEditDesc("");
+      await load();
+    } catch (e: any) {
+      setErr(e.message);
+    }
   }
 
   async function remove(id: string) {
     setErr("");
+    if (!confirm("¿Estás seguro de eliminar esta categoría?")) return;
     try {
       await api(`/categories/${id}`, { method: "DELETE" });
       await load();
-    } catch (e:any) { setErr(e.message); }
+    } catch (e: any) {
+      setErr(e.message);
+    }
   }
 
-  useEffect(()=>{ load(); }, [type]);
+  function startEdit(cat: Category) {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+    setEditDesc(cat.description || "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
+    setEditDesc("");
+  }
+
+  useEffect(() => {
+    load();
+  }, [type]);
+
+  const systemCategories = list.filter((c) => c.isSystem);
+  const userCategories = list.filter((c) => !c.isSystem);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 space-y-8">
-      <h1 className="text-3xl font-display font-semibold">Categorías</h1>
+    <div className="space-y-6">
+      {/* Encabezado */}
+      <div>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">Categorías</h1>
+        <p className="text-warm text-sm">Gestiona las categorías para tus transacciones</p>
+      </div>
 
-      {/* Crear */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-1">
-            <label className="text-sm text-slate-300">Nombre</label>
+      {/* Filtro por tipo */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setType("EXPENSE")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            type === "EXPENSE"
+              ? "btn-orange text-white"
+              : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
+          }`}
+        >
+          Gastos
+        </button>
+        <button
+          onClick={() => setType("INCOME")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            type === "INCOME"
+              ? "btn-orange text-white"
+              : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
+          }`}
+        >
+          Ingresos
+        </button>
+      </div>
+
+      {/* Crear nueva categoría */}
+      <div className="card-glass p-5">
+        <h2 className="text-lg font-semibold text-warm-dark mb-4">Crear nueva categoría</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="text-xs text-warm font-medium mb-1.5 block">Nombre</label>
             <input
               value={name}
-              onChange={(e)=>setName(e.target.value)}
-              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Compras online"
+              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
             />
           </div>
-
           <div>
-            <label className="text-sm text-slate-300">Tipo</label>
-            <select
-              value={type}
-              onChange={(e)=>setType(e.target.value as CategoryType)}
-              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
-            >
-              <option value="EXPENSE">Gasto</option>
-              <option value="INCOME">Ingreso</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-1">
-            <label className="text-sm text-slate-300">Descripción</label>
+            <label className="text-xs text-warm font-medium mb-1.5 block">Descripción (opcional)</label>
             <input
               value={desc}
-              onChange={(e)=>setDesc(e.target.value)}
-              className="mt-1 w-full rounded-xl bg-white/10 px-4 py-2 ring-1 ring-white/10"
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Descripción breve"
+              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
             />
           </div>
         </div>
-
         <button
           onClick={create}
-          disabled={name.trim().length < 2}
-          className="mt-4 rounded-xl bg-fuchsia-600 px-4 py-2 font-medium hover:bg-fuchsia-500 disabled:opacity-50"
+          disabled={!name.trim() || name.trim().length < 2}
+          className="mt-4 btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
         >
-          Crear
+          Crear categoría
         </button>
-        {!!err && <p className="mt-2 text-sm text-rose-300">{err}</p>}
-      </section>
+        {!!err && <p className="mt-3 text-xs text-rose-600 font-medium">{err}</p>}
+      </div>
 
-      {/* Lista */}
-      <section className="grid gap-3">
-        {list.map(c => (
-          <div key={c.id}
-               className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3 ring-1 ring-white/10">
-            <div>
-              <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-slate-400">
-                {c.type==="EXPENSE"?"Gasto":"Ingreso"} {c.isSystem ? "• Sistema" : "• Tuya"}
-                {c.description ? ` • ${c.description}` : ""}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {!c.isSystem && (
-                <button
-                  onClick={()=>remove(c.id)}
-                  className="rounded-xl bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+      {/* Categorías del sistema */}
+      {systemCategories.length > 0 && (
+        <div className="card-glass p-5">
+          <h2 className="text-lg font-semibold text-warm-dark mb-4">
+            Categorías predefinidas {type === "EXPENSE" ? "(Gastos)" : "(Ingresos)"}
+          </h2>
+          {loading ? (
+            <p className="text-warm text-sm">Cargando...</p>
+          ) : (
+            <div className="space-y-2">
+              {systemCategories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
                 >
-                  Eliminar
-                </button>
-              )}
+                  {editingId === cat.id ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        value={editName}
+                        disabled
+                        className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark outline-none disabled:opacity-50"
+                      />
+                      <input
+                        value={editDesc}
+                        onChange={(e) => setEditDesc(e.target.value)}
+                        placeholder="Descripción"
+                        className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      />
+                      <button
+                        onClick={() => update(cat.id)}
+                        className="btn-orange rounded-lg px-3 py-1 text-xs font-medium text-white"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1">
+                        <p className="font-medium text-warm-dark text-sm">{cat.name}</p>
+                        <p className="text-xs text-warm mt-0.5">
+                          {cat.description || "Sin descripción"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => startEdit(cat)}
+                        className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                      >
+                        ✏️ Editar
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      )}
 
-        {list.length===0 && (
-          <div className="rounded-xl bg-white/5 px-4 py-6 text-slate-300 ring-1 ring-white/10">
-            No hay categorías para este tipo.
+      {/* Categorías del usuario */}
+      {userCategories.length > 0 && (
+        <div className="card-glass p-5">
+          <h2 className="text-lg font-semibold text-warm-dark mb-4">Mis categorías</h2>
+          <div className="space-y-2">
+            {userCategories.map((cat) => (
+              <div
+                key={cat.id}
+                className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+              >
+                {editingId === cat.id ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                    />
+                    <input
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      placeholder="Descripción"
+                      className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                    />
+                    <button
+                      onClick={() => update(cat.id)}
+                      className="btn-orange rounded-lg px-3 py-1 text-xs font-medium text-white"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      <p className="font-medium text-warm-dark text-sm">{cat.name}</p>
+                      <p className="text-xs text-warm mt-0.5">
+                        {cat.description || "Sin descripción"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEdit(cat)}
+                        className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => remove(cat.id)}
+                        className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-      </section>
+        </div>
+      )}
+
+      {/* Mensaje cuando no hay categorías */}
+      {!loading && list.length === 0 && (
+        <div className="card-glass p-6 text-center">
+          <p className="text-warm text-sm">No hay categorías para este tipo.</p>
+        </div>
+      )}
     </div>
   );
 }

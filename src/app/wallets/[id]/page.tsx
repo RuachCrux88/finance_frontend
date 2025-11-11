@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import type { Wallet, Transaction, Category } from "@/types";
+import { fetchMe } from "@/utils/session";
+import type { Wallet, Transaction, Category, User, Goal } from "@/types";
 
 // ---------- helpers ----------
-const fmt = (n: number, currency: string) =>
-  new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
+const fmt = (n: number, currency: string) => {
+  // Usar locale fijo para evitar diferencias entre servidor y cliente
+  const locale = 'es-CO'; // o 'en-US' según prefieras
+  return new Intl.NumberFormat(locale, { 
+    style: "currency", 
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+};
 
 function toNum(x: string | number | null | undefined) {
   if (typeof x === "number") return x;
@@ -66,9 +75,9 @@ function Donut({ data, size = 220, thickness = 22 }: { data: PieDatum[]; size?: 
 function Bar({ value, total }: { value: number; total: number }) {
   const pct = total ? Math.round((100 * value) / total) : 0;
   return (
-    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+    <div className="h-2 rounded-full bg-[#E8E2DE] overflow-hidden">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-indigo-500"
+        className="h-full rounded-full gradient-orange"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -84,17 +93,56 @@ export default function WalletDetailPage() {
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [incCats, setIncCats] = useState<Category[]>([]);
   const [expCats, setExpCats] = useState<Category[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [err, setErr] = useState("");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinError, setJoinError] = useState("");
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
+  const [goalName, setGoalName] = useState("");
+  const [goalAmount, setGoalAmount] = useState("");
+  const [goalDeadline, setGoalDeadline] = useState("");
+  const [goalError, setGoalError] = useState("");
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [txType, setTxType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
+  const [txCategory, setTxCategory] = useState("");
+  const [txAmount, setTxAmount] = useState("");
+  const [txDesc, setTxDesc] = useState("");
+  const [txError, setTxError] = useState("");
+  const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [goalProgress, setGoalProgress] = useState<Record<string, any[]>>({});
+  const [showEditGoalModal, setShowEditGoalModal] = useState<string | null>(null);
+  const [editGoalName, setEditGoalName] = useState("");
+  const [editGoalAmount, setEditGoalAmount] = useState("");
+  const [editGoalDeadline, setEditGoalDeadline] = useState("");
+  const [editGoalError, setEditGoalError] = useState("");
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitMembers, setSplitMembers] = useState<Array<{ userId: string; amount: number }>>([]);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const [showGoalDetailModal, setShowGoalDetailModal] = useState<string | null>(null);
+  const [goalTransactionAmount, setGoalTransactionAmount] = useState("");
+  const [goalTransactionDesc, setGoalTransactionDesc] = useState("");
+  const [goalTransactionError, setGoalTransactionError] = useState("");
 
   // carga
   useEffect(() => {
     (async () => {
       try {
         setErr("");
-        // intenta cargar la billetera (si tu backend no expone GET /wallets/:id,
-        // no pasa nada; seguimos con id/currency por defecto)
+        // Cargar usuario actual
         try {
-          const w = await api<Wallet>(`/wallets/${id}`);
+          const me = await fetchMe();
+          setCurrentUser(me);
+        } catch {}
+
+        // Cargar billetera con detalles
+        let w: Wallet | null = null;
+        try {
+          w = await api<Wallet>(`/wallets/${id}`);
           setWallet(w);
         } catch {
           // fallback: al menos guarda el id para la vista
@@ -110,13 +158,317 @@ export default function WalletDetailPage() {
         setTxs(t ?? []);
         setIncCats(inc ?? []);
         setExpCats(exp ?? []);
+
+        // Cargar metas solo si es billetera grupal
+        if (w?.type === "GROUP") {
+          try {
+            const g = await api<Goal[]>(`/goals/wallet/${id}`).catch(() => []);
+            setGoals(g ?? []);
+          } catch {
+            setGoals([]);
+          }
+        } else {
+          setGoals([]);
+        }
       } catch (e: any) {
         setErr(e.message || "Error cargando datos");
       }
     })();
   }, [id]);
 
+  const isOwner = wallet && currentUser && (
+    wallet.createdBy?.id === currentUser.id ||
+    wallet.members?.some(m => m.userId === currentUser.id && m.role === "OWNER")
+  );
+
+  async function handleJoin() {
+    if (!joinCode.trim()) {
+      setJoinError("Por favor ingresa un código");
+      return;
+    }
+
+    setJoinError("");
+    try {
+      await api(`/wallets/join`, {
+        method: "POST",
+        body: JSON.stringify({ inviteCode: joinCode.trim().toUpperCase() }),
+      });
+      setJoinCode("");
+      setShowJoinModal(false);
+      // Recargar billeteras y redirigir
+      router.push("/wallets");
+    } catch (e: any) {
+      setJoinError(e.message || "Error al unirse a la billetera");
+    }
+  }
+
+  async function handleRemoveMember(memberId: string) {
+    if (!confirm("¿Estás seguro de que deseas remover a este miembro?")) return;
+    
+    try {
+      await api(`/wallets/${id}/members/${memberId}`, {
+        method: "DELETE",
+      });
+      // Recargar billetera
+      const w = await api<Wallet>(`/wallets/${id}`);
+      setWallet(w);
+    } catch (e: any) {
+      setErr(e.message || "Error al remover miembro");
+    }
+  }
+
+  async function handleLeaveWallet() {
+    if (!confirm("¿Estás seguro de que deseas salirte de esta billetera?")) return;
+    
+    try {
+      const result = await api<{ success: boolean; message?: string }>(`/wallets/${id}/leave`, {
+        method: "POST",
+      });
+      if (result.message) {
+        alert(result.message);
+      }
+      router.push("/wallets");
+    } catch (e: any) {
+      setErr(e.message || "Error al salirse de la billetera");
+    }
+  }
+
+  async function handleUpdateName() {
+    if (!newName.trim() || newName.trim().length < 3) {
+      setNameError("El nombre debe tener al menos 3 caracteres");
+      return;
+    }
+
+    setNameError("");
+    try {
+      await api(`/wallets/${id}/name`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      setNewName("");
+      setShowEditNameModal(false);
+      // Recargar billetera
+      const w = await api<Wallet>(`/wallets/${id}`);
+      setWallet(w);
+    } catch (e: any) {
+      setNameError(e.message || "Error al actualizar nombre");
+    }
+  }
+
+  async function handleDeleteWallet() {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta billetera? Esta acción no se puede deshacer.")) return;
+    
+    try {
+      await api(`/wallets/${id}`, {
+        method: "DELETE",
+      });
+      router.push("/wallets");
+    } catch (e: any) {
+      setErr(e.message || "Error al eliminar billetera");
+    }
+  }
+
+  function copyInviteCode() {
+    if (wallet?.inviteCode) {
+      navigator.clipboard.writeText(wallet.inviteCode);
+      setShowCopySuccess(true);
+      setTimeout(() => setShowCopySuccess(false), 3000);
+    }
+  }
+
+  async function handleCreateGoal() {
+    if (!goalName.trim() || !goalAmount.trim()) {
+      setGoalError("Nombre y monto son requeridos");
+      return;
+    }
+
+    const amount = parseFloat(goalAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setGoalError("El monto debe ser un número mayor a 0");
+      return;
+    }
+
+    setGoalError("");
+    try {
+      await api("/goals", {
+        method: "POST",
+        body: JSON.stringify({
+          walletId: id,
+          name: goalName.trim(),
+          targetAmount: amount,
+          deadline: goalDeadline || undefined,
+        }),
+      });
+      setGoalName("");
+      setGoalAmount("");
+      setGoalDeadline("");
+      setShowCreateGoalModal(false);
+      // Recargar metas
+      const g = await api<Goal[]>(`/goals/wallet/${id}`);
+      setGoals(g ?? []);
+    } catch (e: any) {
+      setGoalError(e.message || "Error al crear meta");
+    }
+  }
+
+  // Cargar categorías cuando se abre el modal de transacción
+  useEffect(() => {
+    if (showTransactionModal) {
+      const loadCats = async () => {
+        try {
+          const cats = await api<Category[]>(`/categories?type=${txType}`);
+          if (txType === "INCOME") {
+            setIncCats(cats || []);
+            if (cats && cats.length > 0 && !txCategory) {
+              setTxCategory(cats[0].id);
+            }
+          } else {
+            setExpCats(cats || []);
+            if (cats && cats.length > 0 && !txCategory) {
+              setTxCategory(cats[0].id);
+            }
+          }
+        } catch (e) {
+          console.error("Error loading categories:", e);
+        }
+      };
+      loadCats();
+    }
+  }, [showTransactionModal, txType]);
+
+  async function handleCreateTransaction() {
+    if (!txCategory || !txAmount.trim()) {
+      setTxError("Categoría y monto son requeridos");
+      return;
+    }
+
+    const amount = parseFloat(txAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setTxError("El monto debe ser un número mayor a 0");
+      return;
+    }
+
+    // Validar splits si están activos
+    if (showSplitModal && splitMembers.length > 0) {
+      const totalSplit = splitMembers.reduce((sum, s) => sum + s.amount, 0);
+      if (Math.abs(totalSplit - amount) > 0.01) {
+        setTxError(`La suma de los splits (${fmt(totalSplit, currency)}) debe igualar el monto total (${fmt(amount, currency)})`);
+        return;
+      }
+    }
+
+    setTxError("");
+    try {
+      const me = await fetchMe();
+      const splits = showSplitModal && splitMembers.length > 0
+        ? splitMembers
+            .filter(s => s.amount > 0)
+            .map(s => ({ owedByUserId: s.userId, amount: s.amount }))
+        : undefined;
+
+      await api("/transactions", {
+        method: "POST",
+        body: JSON.stringify({
+          walletId: id,
+          categoryId: txCategory,
+          type: wallet?.type === "GROUP" ? "INCOME" : txType,
+          amount: amount,
+          paidByUserId: me.id,
+          description: txDesc || null,
+          splits,
+        }),
+      });
+      setTxCategory("");
+      setTxAmount("");
+      setTxDesc("");
+      setShowSplitModal(false);
+      setSplitMembers([]);
+      setShowTransactionModal(false);
+      // Recargar transacciones
+      const t = await api<Transaction[]>(`/transactions?walletId=${id}`);
+      setTxs(t ?? []);
+    } catch (e: any) {
+      setTxError(e.message || "Error al crear transacción");
+    }
+  }
+
   const currency = wallet?.currency || "COP";
+
+  async function handleCreateGoalTransaction(goalId: string) {
+    if (!goalTransactionAmount.trim()) {
+      setGoalTransactionError("El monto es requerido");
+      return;
+    }
+
+    const amount = parseFloat(goalTransactionAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setGoalTransactionError("El monto debe ser un número mayor a 0");
+      return;
+    }
+
+    setGoalTransactionError("");
+    try {
+      const me = await fetchMe();
+      
+      // Obtener la billetera personal del usuario (la predefinida)
+      const allWallets = await api<Wallet[]>("/wallets").catch(() => []);
+      const personalWallet = allWallets.find(w => w.type === "PERSONAL" && w.isDefault);
+      
+      if (!personalWallet) {
+        setGoalTransactionError("No se encontró tu billetera personal");
+        return;
+      }
+      
+      // Obtener categoría de "Aportes a la meta" en la billetera personal (EXPENSE)
+      const categories = await api<Category[]>(`/categories?type=EXPENSE&walletId=${personalWallet.id}`).catch(() => []);
+      // Buscar categoría de aportes o usar "Imprevistos y reparaciones" como fallback
+      const aporteCategory = categories.find(c => c.name === "Aportes a la meta") || 
+                             categories.find(c => c.name === "Imprevistos y reparaciones") || 
+                             categories[0];
+      
+      if (!aporteCategory) {
+        setGoalTransactionError("No se encontró la categoría para aportes");
+        return;
+      }
+
+      // Crear transacción de tipo EXPENSE en la billetera PERSONAL del usuario
+      // Esto se resta de los ingresos personales y se suma a los gastos personales
+      await api("/transactions", {
+        method: "POST",
+        body: JSON.stringify({
+          walletId: personalWallet.id, // Usar billetera personal, no la grupal
+          categoryId: aporteCategory.id,
+          type: "EXPENSE",
+          amount: amount,
+          paidByUserId: me.id,
+          description: goalTransactionDesc || `Aporte a meta: ${goals.find(g => g.id === goalId)?.name}`,
+        }),
+      });
+
+      setGoalTransactionAmount("");
+      setGoalTransactionDesc("");
+      setGoalTransactionError("");
+      
+      // Recargar datos
+      const [updatedGoals, t] = await Promise.all([
+        api<Goal[]>(`/goals/wallet/${id}`),
+        api<Transaction[]>(`/transactions?walletId=${id}`),
+      ]);
+      setGoals(updatedGoals || []);
+      setTxs(t ?? []);
+      
+      // Cargar progreso de la meta actualizado
+      try {
+        const prog = await api<any[]>(`/goals/progress/${goalId}`);
+        setGoalProgress(prev => ({ ...prev, [goalId]: prog || [] }));
+      } catch (e) {
+        // Si falla, simplemente no actualizamos el progreso
+        console.error("Error al cargar progreso:", e);
+      }
+    } catch (e: any) {
+      setGoalTransactionError(e.message || "Error al crear transacción");
+    }
+  }
 
   // índices de categorías
   const catMap = useMemo(() => {
@@ -133,10 +485,22 @@ export default function WalletDetailPage() {
       .sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 10);
 
+    // Si es billetera grupal y no tiene metas, los ingresos deben ser 0
+    const hasActiveGoals = wallet?.type === "GROUP" && goals.length > 0 && goals.some(g => g.status === "ACTIVE");
+
     for (const t of txs) {
       const v = toNum(t.amount);
-      if (t.type === "INCOME") inc += v;
-      else if (t.type === "EXPENSE") {
+      if (t.type === "INCOME") {
+        // Solo contar ingresos si hay metas activas en billeteras grupales
+        if (wallet?.type === "GROUP") {
+          if (hasActiveGoals) {
+            inc += v;
+          }
+          // Si no hay metas, income = 0 (ya está inicializado en 0)
+        } else {
+          inc += v;
+        }
+      } else if (t.type === "EXPENSE") {
         exp += v;
         groupExp[t.categoryId] = (groupExp[t.categoryId] || 0) + v;
       }
@@ -147,7 +511,7 @@ export default function WalletDetailPage() {
       .slice(0, 6);
 
     return { income: inc, expense: exp, byCatExpense: expArr, recent: sortedRecent };
-  }, [txs]);
+  }, [txs, wallet?.type, goals]);
 
   // donut data (gastos por categoría)
   const pieData: PieDatum[] = useMemo(() => {
@@ -163,127 +527,993 @@ export default function WalletDetailPage() {
   }, [byCatExpense, catMap]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 space-y-8">
+    <div className="space-y-5">
       <button
         onClick={() => router.push("/wallets")}
-        className="rounded-xl bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+        className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
       >
         ← Volver
       </button>
 
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-display font-semibold">
-          {wallet?.name ?? "Billetera"}
-        </h1>
-        <p className="text-sm text-slate-300">
-          {wallet?.type === "GROUP" ? "Compartida" : "Personal"} • {currency}
-        </p>
-        {!!err && <p className="text-sm text-rose-300">{err}</p>}
+      <header className="flex flex-col gap-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-display font-semibold text-warm-dark mb-1">
+              {wallet?.name ?? "Billetera"}
+            </h1>
+            <p className="text-sm text-warm mb-1">
+              {wallet?.type === "GROUP" ? "Compartida" : "Personal"} • {currency}
+            </p>
+            {wallet?.createdBy && (
+              <p className="text-xs text-warm">
+                Dueño: <span className="font-medium text-warm-dark">{wallet.createdBy.name || wallet.createdBy.email}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {wallet?.type === "GROUP" && wallet.inviteCode && (
+              <div className="card-glass px-4 py-2.5">
+                <span className="text-xs text-warm font-medium">Código de ingreso: </span>
+                <span className="font-mono font-bold text-warm-dark text-base">{wallet.inviteCode}</span>
+                <button
+                  onClick={copyInviteCode}
+                  className="ml-2 text-xs text-warm hover:text-warm-dark font-medium"
+                >
+                  📋 Copiar
+                </button>
+              </div>
+            )}
+            {isOwner && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setNewName(wallet?.name || "");
+                    setShowEditNameModal(true);
+                  }}
+                  className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  ✏️ Editar
+                </button>
+                {!wallet?.isDefault && (
+                  <button
+                    onClick={handleDeleteWallet}
+                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+                  >
+                    🗑️ Eliminar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        {!!err && <p className="text-xs text-rose-600 font-medium">{err}</p>}
       </header>
 
-      {/* tarjetas resumen */}
-      <section className="grid gap-4 sm:grid-cols-3">
-        <SummaryCard
-          label="Ingresos"
-          value={fmt(income, currency)}
-          sub="+ entradas"
-          tone="emerald"
-        />
-        <SummaryCard
-          label="Gastos"
-          value={fmt(expense, currency)}
-          sub="- salidas"
-          tone="rose"
-        />
-        <SummaryCard
-          label="Balance"
-          value={fmt(income - expense, currency)}
-          sub="Ingresos - Gastos"
-          tone="indigo"
-        />
-      </section>
-
-      {/* dos columnas */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        {/* izquierda: gastos por categoría */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-medium">Gastos por categoría</h2>
+      {/* Sección de miembros (solo para billeteras grupales) */}
+      {wallet?.type === "GROUP" && wallet.members && wallet.members.length > 0 && (
+        <section className="card-glass p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-warm-dark">Participantes</h2>
+            {currentUser && wallet.members.some(m => m.userId === currentUser.id) && (
+              <button
+                onClick={handleLeaveWallet}
+                className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+              >
+                Salirse de la billetera
+              </button>
+            )}
           </div>
-          {byCatExpense.length === 0 ? (
-            <p className="text-slate-300">Aún no hay gastos registrados.</p>
-          ) : (
-            <ul className="space-y-4">
-              {byCatExpense.map(({ catId, value }) => {
-                const total = expense || 1;
-                const pct = Math.round((100 * value) / total);
-                const name = catMap[catId]?.name || "Otro";
-                return (
-                  <li key={catId} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{name}</span>
-                      <span className="text-sm text-slate-300">
-                        {fmt(value, currency)} • {pct}%
-                      </span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {wallet.members.map((member) => {
+              const joinedDate = member.joinedAt ? new Date(member.joinedAt) : null;
+              const isNewMember = joinedDate && (Date.now() - joinedDate.getTime()) < 7 * 24 * 60 * 60 * 1000;
+              
+              return (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-warm-dark text-sm">
+                        {member.user.name || member.user.email}
+                      </p>
+                      {isNewMember && (
+                        <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs text-white font-medium">
+                          Nuevo
+                        </span>
+                      )}
                     </div>
-                    <Bar value={value} total={total} />
-                  </li>
+                    <p className="text-xs text-warm mt-0.5">
+                      {member.role === "OWNER" ? "Dueño" : "Miembro"}
+                      {joinedDate && (
+                        <span> • Desde {joinedDate.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {member.role === "OWNER" && (
+                      <span className="rounded-full bg-gradient-orange px-2.5 py-0.5 text-xs text-white font-medium">
+                        Dueño
+                      </span>
+                    )}
+                    {isOwner && member.role !== "OWNER" && (
+                      <button
+                        onClick={() => handleRemoveMember(member.id)}
+                        className="rounded-full border border-rose-300 px-2.5 py-0.5 text-xs text-rose-600 hover:bg-rose-50 transition"
+                      >
+                        ✕ Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Sección de metas (solo para billeteras grupales) */}
+      {wallet?.type === "GROUP" && (
+        <section className="card-glass p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-warm-dark">Metas</h2>
+            {isOwner && (
+              <button
+                onClick={() => {
+                  setGoalName("");
+                  setGoalAmount("");
+                  setGoalDeadline("");
+                  setGoalError("");
+                  setShowCreateGoalModal(true);
+                }}
+                className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+              >
+                + Crear meta
+              </button>
+            )}
+          </div>
+          {goals.length === 0 ? (
+            <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
+              {isOwner ? "Aún no hay metas. Crea una para comenzar." : "Aún no hay metas creadas."}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {goals.map((goal) => {
+                const current = Number(goal.currentAmount);
+                const target = Number(goal.targetAmount);
+                const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+                const isAchieved = goal.status === "ACHIEVED" || current >= target;
+                const isExpanded = expandedGoal === goal.id;
+                const progress = goalProgress[goal.id] || [];
+                const isOwnerOfGoal = goal.createdBy?.id === currentUser?.id;
+                
+                return (
+                  <div
+                    key={goal.id}
+                    onClick={(e) => {
+                      // Evitar que el click se propague a los botones internos
+                      if ((e.target as HTMLElement).closest('button')) return;
+                      setShowGoalDetailModal(goal.id);
+                      // Cargar progreso si no está cargado
+                      if (!goalProgress[goal.id]) {
+                        api<any[]>(`/goals/progress/${goal.id}`)
+                          .then(prog => setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] })))
+                          .catch((err) => {
+                            console.error("Error al cargar progreso:", err);
+                            // Si falla, establecer un array vacío para evitar errores
+                            setGoalProgress(prev => ({ ...prev, [goal.id]: [] }));
+                          });
+                      }
+                    }}
+                    className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-4 cursor-pointer hover:bg-[#FEFFFF]/50 transition"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-warm-dark text-base">{goal.name}</h3>
+                          {isOwnerOfGoal && (
+                            <div className="flex gap-1">
+                              {goal.status === "ACTIVE" && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await api(`/goals/${goal.id}`, {
+                                        method: "PATCH",
+                                        body: JSON.stringify({ status: "PAUSED" }),
+                                      });
+                                      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                                      setGoals(updated || []);
+                                    } catch (e: any) {
+                                      alert(e.message || "Error al pausar meta");
+                                    }
+                                  }}
+                                  className="text-xs text-amber-600 hover:text-amber-700"
+                                  title="Pausar meta"
+                                >
+                                  ⏸️
+                                </button>
+                              )}
+                              {goal.status === "PAUSED" && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await api(`/goals/${goal.id}`, {
+                                        method: "PATCH",
+                                        body: JSON.stringify({ status: "ACTIVE" }),
+                                      });
+                                      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                                      setGoals(updated || []);
+                                    } catch (e: any) {
+                                      alert(e.message || "Error al reactivar meta");
+                                    }
+                                  }}
+                                  className="text-xs text-emerald-600 hover:text-emerald-700"
+                                  title="Reactivar meta"
+                                >
+                                  ▶️
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setEditGoalName(goal.name);
+                                  setEditGoalAmount(goal.targetAmount);
+                                  setEditGoalDeadline(goal.deadline || "");
+                                  setEditGoalError("");
+                                  setShowEditGoalModal(goal.id);
+                                }}
+                                className="text-xs text-warm hover:text-warm-dark"
+                                title="Editar meta"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm("¿Estás seguro de eliminar esta meta?")) return;
+                                  try {
+                                    await api(`/goals/${goal.id}`, { method: "DELETE" });
+                                    const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                                    setGoals(updated || []);
+                                  } catch (e: any) {
+                                    alert(e.message || "Error al eliminar meta");
+                                  }
+                                }}
+                                className="text-xs text-rose-600 hover:text-rose-700"
+                                title="Eliminar meta"
+                              >
+                                🗑️
+                              </button>
+                              {goal.status === "ACTIVE" && (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm("¿Estás seguro de cancelar esta meta?")) return;
+                                    try {
+                                      await api(`/goals/${goal.id}`, {
+                                        method: "PATCH",
+                                        body: JSON.stringify({ status: "CANCELLED" }),
+                                      });
+                                      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                                      setGoals(updated || []);
+                                    } catch (e: any) {
+                                      alert(e.message || "Error al cancelar meta");
+                                    }
+                                  }}
+                                  className="text-xs text-gray-600 hover:text-gray-700"
+                                  title="Cancelar meta"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-warm">
+                          {fmt(current, currency)} / {fmt(target, currency)}
+                        </p>
+                        {goal.createdAt && (
+                          <p className="text-xs text-warm mt-0.5">
+                            Creada: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
+                          </p>
+                        )}
+                        {goal.deadline && (
+                          <p className="text-xs text-warm mt-0.5">
+                            Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
+                          </p>
+                        )}
+                      </div>
+                      {goal.status === "PAUSED" && (
+                        <span className="rounded-full bg-amber-500 px-3 py-1 text-xs text-white font-medium">
+                          ⏸️ Pausada
+                        </span>
+                      )}
+                      {goal.status === "CANCELLED" && (
+                        <span className="rounded-full bg-gray-500 px-3 py-1 text-xs text-white font-medium">
+                          ✕ Cancelada
+                        </span>
+                      )}
+                      {isAchieved && goal.status !== "CANCELLED" && (
+                        <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                          ✓ Lograda
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3">
+                      <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            isAchieved ? "bg-emerald-500" : "gradient-orange"
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <p className="text-xs text-warm">
+                          {percentage.toFixed(1)}% completado
+                        </p>
+                        <button
+                          onClick={async () => {
+                            if (isExpanded) {
+                              setExpandedGoal(null);
+                            } else {
+                              setExpandedGoal(goal.id);
+                              try {
+                                const prog = await api<any[]>(`/goals/progress/${goal.id}`);
+                                setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
+                              } catch {}
+                            }
+                          }}
+                          className="text-xs text-warm hover:text-warm-dark font-medium rounded-lg border border-[#E8E2DE] px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
+                        >
+                          {isExpanded ? "▲ Ocultar" : "▼ Ver contribuciones"}
+                        </button>
+                      </div>
+                    </div>
+                    {isExpanded && progress.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-[#E8E2DE]">
+                        <p className="text-xs font-medium text-warm-dark mb-2">Contribuciones:</p>
+                        <div className="space-y-2">
+                          {progress.map((p: any) => (
+                            <div key={p.id} className="flex items-center justify-between text-xs">
+                              <div>
+                                <span className="text-warm-dark font-medium">
+                                  {p.createdBy?.name || p.createdBy?.email || "Usuario"}
+                                </span>
+                                {p.note && (
+                                  <span className="text-warm ml-2">• {p.note}</span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-emerald-600 font-medium">
+                                  +{fmt(Number(p.amount), currency)}
+                                </span>
+                                <p className="text-warm text-xs">
+                                  {new Date(p.date).toLocaleDateString('es-CO')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
-        </div>
+        </section>
+      )}
 
-        {/* derecha: donut + actividad */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-          <h2 className="mb-4 text-lg font-medium">Distribución de gastos</h2>
-          <div className="flex flex-col items-center gap-6 md:flex-row">
-            <Donut data={pieData} />
-            <ul className="flex-1 space-y-2">
-              {pieData.map((d, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <span
-                    className="inline-block h-3 w-3 rounded"
-                    style={{ background: d.color }}
-                  />
-                  <span className="flex-1">{d.label}</span>
-                  <span className="text-slate-300">{fmt(d.value, currency)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
 
-          <div className="mt-8 h-px w-full bg-white/10" />
+      {/* tarjetas resumen */}
+      {/* En billeteras grupales sin metas activas, solo mostrar gastos */}
+      {wallet?.type === "GROUP" && (!goals.length || !goals.some(g => g.status === "ACTIVE")) ? (
+        <section className="grid gap-3 sm:grid-cols-1">
+          <SummaryCard
+            label="Gastos"
+            value={fmt(expense, currency)}
+            sub="- salidas"
+            tone="rose"
+          />
+        </section>
+      ) : (
+        <section className="grid gap-3 sm:grid-cols-3">
+          <SummaryCard
+            label="Ingresos"
+            value={fmt(income, currency)}
+            sub="+ entradas"
+            tone="emerald"
+          />
+          <SummaryCard
+            label="Gastos"
+            value={fmt(expense, currency)}
+            sub="- salidas"
+            tone="rose"
+          />
+          <SummaryCard
+            label="Balance"
+            value={fmt(income - expense, currency)}
+            sub="Ingresos - Gastos"
+            tone="indigo"
+          />
+        </section>
+      )}
 
-          <h3 className="mt-6 mb-3 text-lg font-medium">Actividad reciente</h3>
-          <ul className="space-y-2">
-            {recent.length === 0 && <li className="text-slate-300">Sin movimientos aún.</li>}
-            {recent.map((t) => (
-              <li
-                key={t.id}
-                className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3 ring-1 ring-white/10"
-              >
-                <div className="text-sm">
-                  <p className="font-medium">
+      {/* Botón para crear transacción */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            setShowTransactionModal(true);
+            setTxType(wallet?.type === "GROUP" ? "INCOME" : "EXPENSE");
+            setTxCategory("");
+            setTxAmount("");
+            setTxDesc("");
+            setTxError("");
+          }}
+          className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+        >
+          + Nueva transacción
+        </button>
+      </div>
+
+      {/* Actividad reciente */}
+      <section className="card-glass p-5">
+        <h3 className="mb-4 text-lg font-semibold text-warm-dark">Actividad reciente</h3>
+        <ul className="space-y-2">
+          {recent.length === 0 && <li className="text-warm text-sm">Sin movimientos aún.</li>}
+          {recent.map((t) => (
+            <li
+              key={t.id}
+              className="flex items-start justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+            >
+              <div className="text-xs flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-medium text-warm-dark">
                     {t.description || "(sin descripción)"}
                   </p>
-                  <p className="text-xs text-slate-400">
-                    {new Date(t.date).toLocaleString()}
-                  </p>
+                  {t.category && (
+                    <span className="text-warm text-xs">• {t.category.name}</span>
+                  )}
                 </div>
+                <div className="space-y-0.5">
+                  <p className="text-warm">
+                    <span className="font-medium">Pagado por:</span> {t.paidBy?.name || t.paidBy?.email || "Usuario"}
+                  </p>
+                  {t.createdBy && t.createdBy.id !== t.paidBy?.id && (
+                    <p className="text-warm">
+                      <span className="font-medium">Registrado por:</span> {t.createdBy.name || t.createdBy.email}
+                    </p>
+                  )}
+                  <p className="text-warm">
+                    <span className="font-medium">Fecha:</span> {new Date(t.date).toLocaleString('es-CO', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric', 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                  {t.splits && t.splits.length > 0 && (
+                    <p className="text-warm mt-1 text-xs">
+                      Dividido entre {t.splits.length} {t.splits.length === 1 ? 'persona' : 'personas'}
+                      {t.splits.some(s => s.settled) && (
+                        <span className="text-emerald-600"> • {t.splits.filter(s => s.settled).length} {t.splits.filter(s => s.settled).length === 1 ? 'pagado' : 'pagados'}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right ml-3">
                 <div
-                  className={`font-semibold ${
-                    t.type === "EXPENSE" ? "text-rose-300" : "text-emerald-300"
+                  className={`font-semibold text-sm ${
+                    t.type === "EXPENSE" ? "text-rose-600" : t.type === "SETTLEMENT" ? "text-indigo-600" : "text-emerald-600"
                   }`}
                 >
                   {t.type === "EXPENSE" ? "-" : "+"}
                   {fmt(toNum(t.amount), currency)}
                 </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+                <p className="text-xs text-warm mt-0.5">
+                  {t.type === "EXPENSE" ? "Gasto" : t.type === "SETTLEMENT" ? "Liquidación" : "Ingreso"}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
+
+      {/* Modal para unirse por código */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-warm-dark mb-2">Unirse a billetera</h2>
+            <p className="text-xs text-warm mb-4">
+              Ingresa el código de la billetera grupal a la que deseas unirte.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Código de billetera</label>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="ABCD1234"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 font-mono"
+                  maxLength={8}
+                />
+              </div>
+              {joinError && (
+                <p className="text-xs text-rose-600 font-medium">{joinError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setShowJoinModal(false);
+                    setJoinCode("");
+                    setJoinError("");
+                  }}
+                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleJoin}
+                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
+                >
+                  Unirse
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear meta */}
+      {showCreateGoalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-warm-dark mb-2">Crear nueva meta</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre de la meta</label>
+                <input
+                  type="text"
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                  placeholder="Ej: Viaje a la playa"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo</label>
+                <input
+                  type="number"
+                  value={goalAmount}
+                  onChange={(e) => setGoalAmount(e.target.value)}
+                  placeholder="0.00"
+                  min="0.01"
+                  step="0.01"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+                <input
+                  type="date"
+                  value={goalDeadline}
+                  onChange={(e) => setGoalDeadline(e.target.value)}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              {goalError && (
+                <p className="text-xs text-rose-600 font-medium">{goalError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setShowCreateGoalModal(false);
+                    setGoalName("");
+                    setGoalAmount("");
+                    setGoalDeadline("");
+                    setGoalError("");
+                  }}
+                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateGoal}
+                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
+                >
+                  Crear meta
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar meta */}
+      {showEditGoalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-warm-dark mb-2">Editar meta</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre de la meta</label>
+                <input
+                  type="text"
+                  value={editGoalName}
+                  onChange={(e) => setEditGoalName(e.target.value)}
+                  placeholder="Ej: Viaje a la playa"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo</label>
+                <input
+                  type="number"
+                  value={editGoalAmount}
+                  onChange={(e) => setEditGoalAmount(e.target.value)}
+                  placeholder="0.00"
+                  min="0.01"
+                  step="0.01"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+                <input
+                  type="date"
+                  value={editGoalDeadline}
+                  onChange={(e) => setEditGoalDeadline(e.target.value)}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              {editGoalError && (
+                <p className="text-xs text-rose-600 font-medium">{editGoalError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setShowEditGoalModal(null);
+                    setEditGoalName("");
+                    setEditGoalAmount("");
+                    setEditGoalDeadline("");
+                    setEditGoalError("");
+                  }}
+                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!editGoalName.trim() || !editGoalAmount.trim()) {
+                      setEditGoalError("Nombre y monto son requeridos");
+                      return;
+                    }
+                    const amount = parseFloat(editGoalAmount);
+                    if (isNaN(amount) || amount <= 0) {
+                      setEditGoalError("El monto debe ser un número mayor a 0");
+                      return;
+                    }
+                    setEditGoalError("");
+                    try {
+                      await api(`/goals/${showEditGoalModal}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                          name: editGoalName.trim(),
+                          targetAmount: amount,
+                          deadline: editGoalDeadline || null,
+                        }),
+                      });
+                      setShowEditGoalModal(null);
+                      setEditGoalName("");
+                      setEditGoalAmount("");
+                      setEditGoalDeadline("");
+                      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                      setGoals(updated || []);
+                    } catch (e: any) {
+                      setEditGoalError(e.message || "Error al actualizar meta");
+                    }
+                  }}
+                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
+                >
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar nombre */}
+      {showEditNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-warm-dark mb-2">Editar nombre</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nuevo nombre</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Nombre de la billetera"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              {nameError && (
+                <p className="text-xs text-rose-600 font-medium">{nameError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setShowEditNameModal(false);
+                    setNewName("");
+                    setNameError("");
+                  }}
+                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleUpdateName}
+                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear transacción */}
+      {showTransactionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-warm-dark mb-2">Nueva transacción</h2>
+            <div className="space-y-3">
+              {wallet?.type !== "GROUP" && (
+                <div>
+                  <label className="block text-xs font-medium text-warm-dark mb-1.5">Tipo</label>
+                  <select
+                    value={txType}
+                    onChange={(e) => {
+                      setTxType(e.target.value as "INCOME" | "EXPENSE");
+                      setTxCategory("");
+                    }}
+                    className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  >
+                    <option value="EXPENSE">Gasto</option>
+                    <option value="INCOME">Ingreso</option>
+                  </select>
+                </div>
+              )}
+              {wallet?.type === "GROUP" && (
+                <div className="rounded-lg bg-gradient-to-r from-[#FFD3A0]/30 to-[#FE8625]/20 border border-[#FE8625]/30 px-3 py-2 text-xs font-medium text-warm-dark">
+                  Aporte (solo permitido en billeteras grupales)
+                </div>
+              )}
+              {wallet?.type === "GROUP" && txType === "EXPENSE" && (
+                <div>
+                  <label className="block text-xs font-medium text-warm-dark mb-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showSplitModal}
+                      onChange={(e) => {
+                        setShowSplitModal(e.target.checked);
+                        if (e.target.checked && wallet?.members) {
+                          const totalAmount = parseFloat(txAmount) || 0;
+                          const perPerson = wallet.members.length > 0 ? totalAmount / wallet.members.length : 0;
+                          setSplitMembers(wallet.members.map(m => ({ userId: m.userId, amount: perPerson })));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    Dividir gasto entre miembros
+                  </label>
+                  {showSplitModal && wallet?.members && (
+                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 p-3">
+                      {wallet.members.map((member) => {
+                        const split = splitMembers.find(s => s.userId === member.userId);
+                        return (
+                          <div key={member.id} className="flex items-center gap-2">
+                            <span className="text-xs text-warm-dark flex-1">
+                              {member.user.name || member.user.email}
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={split?.amount || ""}
+                              onChange={(e) => {
+                                const amount = parseFloat(e.target.value) || 0;
+                                setSplitMembers(prev => {
+                                  const filtered = prev.filter(s => s.userId !== member.userId);
+                                  return [...filtered, { userId: member.userId, amount }];
+                                });
+                              }}
+                              placeholder="0.00"
+                              className="w-24 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-xs text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                            />
+                          </div>
+                        );
+                      })}
+                      {txAmount && (
+                        <div className="mt-2 pt-2 border-t border-[#E8E2DE] text-xs">
+                          <span className="text-warm">Total dividido: </span>
+                          <span className={`font-medium ${
+                            Math.abs((splitMembers.reduce((sum, s) => sum + s.amount, 0)) - parseFloat(txAmount)) < 0.01
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                          }`}>
+                            {fmt(splitMembers.reduce((sum, s) => sum + s.amount, 0), currency)}
+                          </span>
+                          <span className="text-warm"> / Total: {fmt(parseFloat(txAmount) || 0, currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Categoría</label>
+                <select
+                  value={txCategory}
+                  onChange={(e) => setTxCategory(e.target.value)}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                >
+                  <option value="">Selecciona una categoría</option>
+                  {(txType === "INCOME" ? incCats : expCats).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={txAmount}
+                  onChange={(e) => setTxAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                <input
+                  type="text"
+                  value={txDesc}
+                  onChange={(e) => setTxDesc(e.target.value)}
+                  placeholder="Ej: Mercado, Netflix..."
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                />
+              </div>
+              {txError && (
+                <p className="text-xs text-rose-600 font-medium">{txError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    setShowTransactionModal(false);
+                    setTxCategory("");
+                    setTxAmount("");
+                    setTxDesc("");
+                    setTxError("");
+                    setShowSplitModal(false);
+                    setSplitMembers([]);
+                  }}
+                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateTransaction}
+                  disabled={!txCategory || !txAmount.trim()}
+                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Crear transacción
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Modal de detalle de meta */}
+      {showGoalDetailModal && (() => {
+        const goal = goals.find(g => g.id === showGoalDetailModal);
+        if (!goal) return null;
+        
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="card-glass p-6 w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-warm-dark">{goal.name}</h2>
+                <button
+                  onClick={() => {
+                    setShowGoalDetailModal(null);
+                    setGoalTransactionAmount("");
+                    setGoalTransactionDesc("");
+                    setGoalTransactionError("");
+                  }}
+                  className="text-warm hover:text-warm-dark text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Información de la meta */}
+                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
+                  <p className="text-sm text-warm-dark mb-2">
+                    Progreso: {fmt(Number(goal.currentAmount), currency)} / {fmt(Number(goal.targetAmount), currency)}
+                  </p>
+                  <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
+                    <div
+                      className="h-full rounded-full gradient-orange transition-all"
+                      style={{ width: `${Math.min((Number(goal.currentAmount) / Number(goal.targetAmount)) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Botón para hacer transacción */}
+                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-warm-dark mb-3">Hacer aporte a la meta</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={goalTransactionAmount}
+                        onChange={(e) => setGoalTransactionAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                      <input
+                        type="text"
+                        value={goalTransactionDesc}
+                        onChange={(e) => setGoalTransactionDesc(e.target.value)}
+                        placeholder="Ej: Aporte mensual"
+                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      />
+                    </div>
+                    {goalTransactionError && (
+                      <p className="text-xs text-rose-600 font-medium">{goalTransactionError}</p>
+                    )}
+                    <button
+                      onClick={() => handleCreateGoalTransaction(goal.id)}
+                      disabled={!goalTransactionAmount.trim()}
+                      className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      Hacer aporte
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Popup de código copiado */}
+      {showCopySuccess && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-up">
+          <div className="card-glass px-4 py-3 shadow-lg border border-emerald-500/50">
+            <p className="text-sm font-medium text-emerald-600">
+              ✓ Código copiado exitosamente
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -299,18 +1529,18 @@ function SummaryCard({
   sub: string;
   tone?: "indigo" | "rose" | "emerald";
 }) {
-  const bg =
+  const borderColor =
     tone === "rose"
-      ? "from-rose-500/20 to-fuchsia-500/10"
+      ? "border-rose-200"
       : tone === "emerald"
-        ? "from-emerald-500/20 to-teal-500/10"
-        : "from-indigo-500/20 to-fuchsia-500/10";
+        ? "border-emerald-200"
+        : "border-[#D7B59B]";
 
   return (
-    <div className={`rounded-2xl border border-white/10 bg-gradient-to-br ${bg} p-5 backdrop-blur-md`}>
-      <p className="text-sm text-slate-300">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{sub}</p>
+    <div className={`card-glass p-4 border ${borderColor}`}>
+      <p className="text-xs font-medium text-warm mb-1.5">{label}</p>
+      <p className="text-2xl font-semibold text-warm-dark mb-1">{value}</p>
+      <p className="text-xs text-warm">{sub}</p>
     </div>
   );
 }
