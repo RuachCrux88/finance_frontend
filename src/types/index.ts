@@ -28,7 +28,7 @@ export type Transaction = {
   category?: Category;
   paidBy?: { id: string; name?: string; email: string };
   createdBy?: { id: string; name?: string; email: string };
-  wallet?: { id: string; name: string; type?: WalletType };
+  wallet?: { id: string; name: string; type?: WalletType; currency?: string };
   splits?: TransactionSplit[];
 };
 
@@ -90,4 +90,36 @@ export type Settlement = {
   fromUser?: User;
   toUser?: User;
   createdBy?: User;
+};
+
+export type PaymentReminder = {
+  id: string;
+  userId: string;
+  walletId: string;
+  categoryId: string;
+  name: string;
+  amount: string;
+  description?: string;
+  dueDate: string;
+  reminderDate?: string;
+  isPaid: boolean;
+  paidAt?: string;
+  transactionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  wallet?: {
+    id: string;
+    name: string;
+    currency: string;
+  };
+  category?: {
+    id: string;
+    name: string;
+    type: string;
+  };
+  transaction?: {
+    id: string;
+    amount: string;
+    date: string;
+  };
 };

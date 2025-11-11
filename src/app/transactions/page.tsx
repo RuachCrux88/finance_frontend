@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, AuthError } from "@/lib/api";
+import { fetchMe } from "@/utils/session";
 import type { Wallet, Category, CategoryType, Transaction } from "@/types";
 
 // Helpers
@@ -36,10 +37,18 @@ export default function TransactionsPage() {
   const [newCatName, setNewCatName] = useState("");
   const [newCatDesc, setNewCatDesc] = useState("");
   const [newCatError, setNewCatError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Detectar si la billetera seleccionada es grupal
   const selectedWallet = wallets.find(w => w.id === walletId);
   const isGroupWallet = selectedWallet?.type === "GROUP";
+
+  // Verificar autenticación
+  useEffect(() => {
+    fetchMe()
+      .then(() => setIsAuthenticated(true))
+      .catch(() => setIsAuthenticated(false));
+  }, []);
 
   // cargar combos
   useEffect(() => {
@@ -48,7 +57,14 @@ export default function TransactionsPage() {
         const ws = await api<Wallet[]>("/wallets");
         setWallets(ws);
         if (ws[0]) setWid(ws[0].id);
-      } catch (e:any) { setErr(e.message); }
+        setIsAuthenticated(true);
+      } catch (e:any) { 
+        if (e instanceof AuthError) {
+          setIsAuthenticated(false);
+        } else {
+          setErr(e.message); 
+        }
+      }
     })();
   }, []);
 
@@ -164,7 +180,8 @@ export default function TransactionsPage() {
                       setNewCatError("");
                       setShowAddCategoryModal(true);
                     }}
-                    className="text-xs text-[#FE8625] hover:text-[#FE8625]/80 font-medium"
+                    disabled={!isAuthenticated}
+                    className={`text-xs font-medium ${!isAuthenticated ? "opacity-50 cursor-not-allowed text-warm" : "text-[#FE8625] hover:text-[#FE8625]/80"}`}
                   >
                     + Añadir categoría
                   </button>
@@ -201,8 +218,8 @@ export default function TransactionsPage() {
 
             <button
               onClick={submit}
-              disabled={!ready}
-              className="mt-1 btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
+              disabled={!ready || !isAuthenticated}
+              className="mt-1 btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none disabled:cursor-not-allowed"
             >
               Agregar transacción
             </button>
@@ -334,7 +351,8 @@ export default function TransactionsPage() {
                       setNewCatError(e.message || "Error al crear categoría");
                     }
                   }}
-                  className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
+                  disabled={!isAuthenticated}
+                  className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   Crear categoría
                 </button>

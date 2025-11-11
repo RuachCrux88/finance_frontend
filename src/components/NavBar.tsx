@@ -10,6 +10,7 @@ import { fetchMe, doLogout } from "@/utils/session";
 
 const links = [
   { href: "/", label: "Inicio" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/wallets", label: "Billeteras" },
   { href: "/transactions", label: "Transacciones" },
   { href: "/categories", label: "Categorías" },
@@ -42,7 +43,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-2.5">
             <div className="relative h-8 w-8 flex-shrink-0">
               <Image
-                src="/coin-f.png"
+                src="/coin-f.svg"
                 alt="Finance Logo"
                 fill
                 className="object-contain"
@@ -73,6 +74,16 @@ export default function Navbar() {
                 </li>
               );
             })}
+            <li>
+              <a
+                href="https://drive.google.com/drive/folders/1fYgAQwcilhWWhJ4wDVInSbErAiw-H5Q9?usp=drive_link"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg px-3 py-1.5 text-sm text-warm hover:text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+              >
+                ¿Mobile?
+              </a>
+            </li>
           </ul>
 
           {/* Auth */}

@@ -1,6 +1,6 @@
 // src/utils/http.ts
 export async function apiFetch(path: string, init: RequestInit = {}) {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
   const res = await fetch(`${base}${path}`, {
     ...init,
     credentials: 'include', // <<-- para enviar/recibir cookie JWT

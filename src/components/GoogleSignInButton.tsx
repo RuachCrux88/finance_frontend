@@ -3,7 +3,7 @@
 type Props = { className?: string };
 
 export default function GoogleSignInButton({ className }: Props) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
   const handleClick = () => {
     // Redirige al backend (Nest) que inicia OAuth con Google.

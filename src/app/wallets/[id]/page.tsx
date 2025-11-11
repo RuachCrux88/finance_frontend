@@ -520,6 +520,38 @@ export default function WalletDetailPage() {
     return map;
   }, [incCats, expCats]);
 
+  // Estado para almacenar los aportes totales a metas (desde billeteras personales)
+  const [totalGoalContributions, setTotalGoalContributions] = useState<number>(0);
+
+  // Cargar aportes totales a metas para billeteras grupales
+  useEffect(() => {
+    if (wallet?.type === "GROUP" && goals.length > 0) {
+      (async () => {
+        try {
+          // Sumar todos los aportes de todas las metas activas
+          let total = 0;
+          for (const goal of goals) {
+            if (goal.status === "ACTIVE" || goal.status === "PAUSED") {
+              try {
+                const progress = await api<any[]>(`/goals/progress/${goal.id}`).catch(() => []);
+                const goalTotal = progress.reduce((sum, p) => sum + toNum(p.amount), 0);
+                total += goalTotal;
+              } catch (e) {
+                console.error(`Error loading progress for goal ${goal.id}:`, e);
+              }
+            }
+          }
+          setTotalGoalContributions(total);
+        } catch (e) {
+          console.error("Error loading goal contributions:", e);
+          setTotalGoalContributions(0);
+        }
+      })();
+    } else {
+      setTotalGoalContributions(0);
+    }
+  }, [wallet?.type, goals, id]);
+
   // agregados - optimizado para recalcular solo cuando cambia la cantidad de transacciones o el tipo de billetera
   const { income, expense, byCatExpense, recent } = useMemo(() => {
     let inc = 0, exp = 0;
@@ -533,15 +565,25 @@ export default function WalletDetailPage() {
       : [];
 
     // Optimizar: usar forEach en lugar de for...of para mejor rendimiento
-    // Mostrar todos los ingresos (aportes) de los usuarios
     txs.forEach((t) => {
       const v = toNum(t.amount);
       if (t.type === "INCOME") {
-        // Contar todos los ingresos (aportes) sin importar si hay metas activas
+        // Contar todos los ingresos (aportes) directos en la billetera
         inc += v;
+      } else if (t.type === "EXPENSE") {
+        // Contar gastos para billeteras personales
+        exp += v;
+        // Agrupar por categoría para el gráfico
+        if (t.categoryId) {
+          groupExp[t.categoryId] = (groupExp[t.categoryId] || 0) + v;
+        }
       }
-      // Los gastos ya no se muestran, pero se mantienen para cálculos internos si se necesitan
     });
+
+    // Para billeteras grupales, sumar todos los aportes a metas (incluyendo los de billeteras personales)
+    if (wallet?.type === "GROUP") {
+      inc += totalGoalContributions;
+    }
     
     const expArr = Object.entries(groupExp)
       .map(([catId, value]) => ({ catId, value }))
@@ -549,7 +591,7 @@ export default function WalletDetailPage() {
       .slice(0, 6);
 
     return { income: inc, expense: exp, byCatExpense: expArr, recent: sortedRecent };
-  }, [txs, wallet?.type, goals]); // Optimizado: usar txs directamente pero con cálculo optimizado interno
+  }, [txs, wallet?.type, goals, totalGoalContributions]); // Incluir totalGoalContributions en dependencias
 
   // donut data (gastos por categoría)
   const pieData: PieDatum[] = useMemo(() => {
@@ -942,14 +984,37 @@ export default function WalletDetailPage() {
       )}
 
 
-      {/* tarjetas resumen - Solo mostrar ingresos (aportes) */}
-      <section className="grid gap-3 sm:grid-cols-1">
-        <SummaryCard
-          label="Ingresos"
-          value={fmt(income, currency)}
-          sub="+ aportes de usuarios"
-          tone="emerald"
-        />
+      {/* tarjetas resumen */}
+      <section className={`grid gap-3 ${wallet?.type === "PERSONAL" ? "sm:grid-cols-3" : "sm:grid-cols-1"}`}>
+        {wallet?.type === "PERSONAL" ? (
+          <>
+            <SummaryCard
+              label="Ingresos"
+              value={fmt(income, currency)}
+              sub="+ entradas"
+              tone="emerald"
+            />
+            <SummaryCard
+              label="Gastos"
+              value={fmt(expense, currency)}
+              sub="- salidas"
+              tone="rose"
+            />
+            <SummaryCard
+              label="Balance"
+              value={fmt(income - expense, currency)}
+              sub={income - expense >= 0 ? "= positivo" : "= negativo"}
+              tone={income - expense >= 0 ? "emerald" : "rose"}
+            />
+          </>
+        ) : (
+          <SummaryCard
+            label="Ingresos"
+            value={fmt(income, currency)}
+            sub="+ aportes de usuarios (incluye aportes a metas)"
+            tone="emerald"
+          />
+        )}
       </section>
 
       {/* Actividad reciente */}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, AuthError } from "@/lib/api";
 import type { Category, CategoryType } from "@/types";
+import AuthRequired from "@/components/AuthRequired";
 
 export default function CategoriesPage() {
   const [type, setType] = useState<CategoryType>("EXPENSE");
@@ -22,7 +23,11 @@ export default function CategoriesPage() {
       const data = await api<Category[]>(`/categories?type=${type}`);
       setList(data ?? []);
     } catch (e: any) {
-      setErr(e.message);
+      if (e instanceof AuthError) {
+        setErr("AUTH_REQUIRED");
+      } else {
+        setErr(e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -103,8 +108,22 @@ export default function CategoriesPage() {
     load();
   }, [type]);
 
-  const systemCategories = list.filter((c) => c.isSystem);
-  const userCategories = list.filter((c) => !c.isSystem);
+  // Eliminar duplicados por nombre y tipo (mantener solo la primera ocurrencia)
+  const categoryMap = new Map<string, Category>();
+  list.forEach(cat => {
+    const key = `${cat.name}_${cat.type}`;
+    if (!categoryMap.has(key)) {
+      categoryMap.set(key, cat);
+    }
+  });
+  const uniqueList = Array.from(categoryMap.values());
+
+  const systemCategories = uniqueList.filter((c) => c.isSystem);
+  const userCategories = uniqueList.filter((c) => !c.isSystem);
+
+  if (err === "AUTH_REQUIRED") {
+    return <AuthRequired />;
+  }
 
   return (
     <div className="space-y-6">

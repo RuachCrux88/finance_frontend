@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, AuthError } from "@/lib/api";
 import { fetchMe } from "@/utils/session";
 import type { Wallet, WalletType, Goal, User } from "@/types";
+import AuthRequired from "@/components/AuthRequired";
 
 const currencies = ["COP","USD","EUR","MXN","ARS"];
 
@@ -41,7 +42,13 @@ export default function WalletsPage() {
     try {
       const data = await api<Wallet[]>("/wallets");
       setItems(data ?? []);
-    } catch (e:any) { setErr(e.message); }
+    } catch (e:any) { 
+      if (e instanceof AuthError) {
+        setErr("AUTH_REQUIRED");
+      } else {
+        setErr(e.message); 
+      }
+    }
     setLoading(false);
   }
 
@@ -141,6 +148,10 @@ export default function WalletsPage() {
       maximumFractionDigits: 0,
     }).format(n);
   };
+
+  if (err === "AUTH_REQUIRED") {
+    return <AuthRequired />;
+  }
 
   return (
     <div className="space-y-5">

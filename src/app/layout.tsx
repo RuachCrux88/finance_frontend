@@ -1,25 +1,28 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter, Sora } from "next/font/google";
-import Navbar from "@/components/NavBar"; // lo creamos en el paso 2
+import { Nunito } from "next/font/google";
+import Navbar from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Finance",
   description: "Finanzas personales y grupales",
   icons: {
-    icon: "/coin-f.png",
-    shortcut: "/coin-f.png",
-    apple: "/coin-f.png",
+    icon: "/coin-f.svg",
+    shortcut: "/coin-f.svg",
+    apple: "/coin-f.svg",
   },
 };
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const sora  = Sora({ subsets: ["latin"], variable: "--font-display" });
+const nunito = Nunito({ 
+  subsets: ["latin"], 
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-sans" 
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-    <body className={`${inter.variable} ${sora.variable} font-sans min-h-dvh text-warm-dark antialiased bg-app`}>
+    <body className={`${nunito.variable} font-sans min-h-dvh text-warm-dark antialiased bg-app`}>
     {/* Líneas verticales decorativas (inspiradas en la imagen) */}
     <div className="fixed top-0 left-[25%] w-px h-full bg-white/30 blur-[1px] -z-10" />
     <div className="fixed top-0 left-[27%] w-px h-full bg-white/30 blur-[1px] -z-10" />

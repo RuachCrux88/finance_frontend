@@ -14,8 +14,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
-        display: ["var(--font-display)", "var(--font-sans)"],
+        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui'],
+        display: ['var(--font-sans)', 'ui-sans-serif', 'system-ui'],
       },
       colors: {
         bg:      "#0b0b12",

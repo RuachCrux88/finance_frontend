@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 export default function RegisterPage() {
-  const api = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const api = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
