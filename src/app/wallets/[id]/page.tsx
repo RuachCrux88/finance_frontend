@@ -5,6 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { fetchMe } from "@/utils/session";
 import type { Wallet, Transaction, Category, User, Goal } from "@/types";
+import Modal from "@/components/Modal";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translateCategory } from "@/utils/categoryTranslations";
 
 // ---------- helpers ----------
 const fmt = (n: number, currency: string) => {
@@ -88,6 +91,7 @@ function Bar({ value, total }: { value: number; total: number }) {
 export default function WalletDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { language, t } = useLanguage();
 
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
@@ -127,6 +131,12 @@ export default function WalletDetailPage() {
   const [goalTransactionAmount, setGoalTransactionAmount] = useState("");
   const [goalTransactionDesc, setGoalTransactionDesc] = useState("");
   const [goalTransactionError, setGoalTransactionError] = useState("");
+  const [goalDescription, setGoalDescription] = useState("");
+  const [editGoalDescription, setEditGoalDescription] = useState("");
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [achievedGoalName, setAchievedGoalName] = useState("");
+  const [activeTab, setActiveTab] = useState<"pending" | "achieved">("pending");
+  const [achievedGoals, setAchievedGoals] = useState<Goal[]>([]);
 
   // carga
   useEffect(() => {
@@ -146,12 +156,12 @@ export default function WalletDetailPage() {
           setWallet(w);
         } catch {
           // fallback: al menos guarda el id para la vista
-          setWallet({ id, name: "Billetera", type: "GROUP", currency: "COP" });
+          setWallet({ id, name: t("walletDetail.wallet"), type: "GROUP", currency: "COP" });
         }
 
         // Cargar solo transacciones inicialmente, categorías se cargan bajo demanda
-        const t = await api<Transaction[]>(`/transactions?walletId=${id}`).catch(() => []);
-        setTxs(t ?? []);
+        const transactions = await api<Transaction[]>(`/transactions?walletId=${id}`).catch(() => []);
+        setTxs(transactions ?? []);
 
         // Cargar metas solo si es billetera grupal
         if (w?.type === "GROUP") {
@@ -289,6 +299,7 @@ export default function WalletDetailPage() {
         body: JSON.stringify({
           walletId: id,
           name: goalName.trim(),
+          description: goalDescription.trim() || undefined,
           targetAmount: amount,
           deadline: goalDeadline || undefined,
         }),
@@ -296,6 +307,7 @@ export default function WalletDetailPage() {
       setGoalName("");
       setGoalAmount("");
       setGoalDeadline("");
+      setGoalDescription("");
       setShowCreateGoalModal(false);
       // Recargar metas
       const g = await api<Goal[]>(`/goals/wallet/${id}`);
@@ -304,6 +316,37 @@ export default function WalletDetailPage() {
       setGoalError(e.message || "Error al crear meta");
     }
   }
+
+  // Función para cargar metas cumplidas
+  const loadAchievedGoals = async () => {
+    try {
+      const achieved = await api<Goal[]>(`/goals/achieved?walletId=${id}`);
+      setAchievedGoals(achieved || []);
+    } catch (err) {
+      console.error("Error al cargar metas cumplidas:", err);
+      setAchievedGoals([]);
+    }
+  };
+
+  // Función para marcar meta como cumplida
+  const handleMarkAsAchieved = async (goalId: string, goalName: string) => {
+    try {
+      await api(`/goals/${goalId}/achieve`, {
+        method: "PATCH",
+      });
+      // Recargar metas pendientes
+      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+      setGoals(updated || []);
+      // Recargar metas cumplidas
+      await loadAchievedGoals();
+      
+      // Mostrar popup de felicitación
+      setAchievedGoalName(goalName);
+      setShowAchievementModal(true);
+    } catch (e: any) {
+      alert(e.message || "Error al marcar meta como cumplida");
+    }
+  };
 
   // Cargar categorías solo cuando se abre el modal y solo si no están ya cargadas
   useEffect(() => {
@@ -440,8 +483,8 @@ export default function WalletDetailPage() {
       setSplitMembers([]);
       setShowTransactionModal(false);
       // Recargar transacciones
-      const t = await api<Transaction[]>(`/transactions?walletId=${id}`);
-      setTxs(t ?? []);
+      const transactions = await api<Transaction[]>(`/transactions?walletId=${id}`);
+      setTxs(transactions ?? []);
     } catch (e: any) {
       setTxError(e.message || "Error al crear transacción");
     }
@@ -464,23 +507,14 @@ export default function WalletDetailPage() {
     setGoalTransactionError("");
     try {
       const me = await fetchMe();
-      
-      // Obtener la billetera personal del usuario (la predefinida)
-      const allWallets = await api<Wallet[]>("/wallets").catch(() => []);
-      const personalWallet = allWallets.find(w => w.type === "PERSONAL" && w.isDefault);
-      
-      if (!personalWallet) {
-        setGoalTransactionError("No se encontró tu billetera personal");
-        return;
-      }
 
-      // Crear transacción de tipo EXPENSE en la billetera PERSONAL del usuario
-      // Sin categoría, ya que es un aporte a meta
-      // Esto se resta de los ingresos personales y se suma a los gastos personales
+      // Crear transacción de tipo EXPENSE directamente en la billetera GRUPAL
+      // Esto cuenta como gasto para el usuario que aporta, pero NO como ingreso para otros usuarios
+      // El backend se encarga de que solo cuente para el usuario que la crea (paidByUserId)
       await api("/transactions", {
         method: "POST",
         body: JSON.stringify({
-          walletId: personalWallet.id, // Usar billetera personal, no la grupal
+          walletId: id, // Usar la billetera grupal donde está la meta
           type: "EXPENSE",
           amount: amount,
           paidByUserId: me.id,
@@ -493,12 +527,12 @@ export default function WalletDetailPage() {
       setGoalTransactionError("");
       
       // Recargar datos
-      const [updatedGoals, t] = await Promise.all([
+      const [updatedGoals, transactions] = await Promise.all([
         api<Goal[]>(`/goals/wallet/${id}`),
         api<Transaction[]>(`/transactions?walletId=${id}`),
       ]);
       setGoals(updatedGoals || []);
-      setTxs(t ?? []);
+      setTxs(transactions ?? []);
       
       // Cargar progreso de la meta actualizado
       try {
@@ -565,17 +599,17 @@ export default function WalletDetailPage() {
       : [];
 
     // Optimizar: usar forEach en lugar de for...of para mejor rendimiento
-    txs.forEach((t) => {
-      const v = toNum(t.amount);
-      if (t.type === "INCOME") {
+    txs.forEach((tx) => {
+      const v = toNum(tx.amount);
+      if (tx.type === "INCOME") {
         // Contar todos los ingresos (aportes) directos en la billetera
         inc += v;
-      } else if (t.type === "EXPENSE") {
+      } else if (tx.type === "EXPENSE") {
         // Contar gastos para billeteras personales
         exp += v;
         // Agrupar por categoría para el gráfico
-        if (t.categoryId) {
-          groupExp[t.categoryId] = (groupExp[t.categoryId] || 0) + v;
+        if (tx.categoryId) {
+          groupExp[tx.categoryId] = (groupExp[tx.categoryId] || 0) + v;
         }
       }
     });
@@ -600,11 +634,11 @@ export default function WalletDetailPage() {
     ];
     const total = byCatExpense.reduce((s, c) => s + c.value, 0);
     return byCatExpense.map((row, i) => ({
-      label: catMap[row.catId]?.name || "Otro",
+      label: catMap[row.catId]?.name || (language === "es" ? "Otro" : "Other"),
       value: row.value,
       color: palette[i % palette.length],
-    })).concat(total === 0 ? [{ label: "Sin gastos", value: 1, color: "#334155" }] : []);
-  }, [byCatExpense, catMap]);
+    })).concat(total === 0 ? [{ label: t("walletDetail.noExpenses"), value: 1, color: "#334155" }] : []);
+  }, [byCatExpense, catMap, language, t]);
 
   return (
     <div className="space-y-5">
@@ -619,27 +653,27 @@ export default function WalletDetailPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl sm:text-4xl font-display font-semibold text-warm-dark mb-1">
-              {wallet?.name ?? "Billetera"}
+              {wallet?.name ?? t("walletDetail.wallet")}
             </h1>
             <p className="text-sm text-warm mb-1">
-              {wallet?.type === "GROUP" ? "Compartida" : "Personal"} • {currency}
+              {wallet?.type === "GROUP" ? t("walletDetail.shared") : t("walletDetail.personal")} • {currency}
             </p>
             {wallet?.createdBy && (
               <p className="text-xs text-warm">
-                Dueño: <span className="font-medium text-warm-dark">{wallet.createdBy.name || wallet.createdBy.email}</span>
+                {t("walletDetail.owner")}: <span className="font-medium text-warm-dark">{wallet.createdBy.name || wallet.createdBy.email}</span>
               </p>
             )}
           </div>
           <div className="flex items-center gap-2">
             {wallet?.type === "GROUP" && wallet.inviteCode && (
               <div className="card-glass px-4 py-2.5">
-                <span className="text-xs text-warm font-medium">Código de ingreso: </span>
+                <span className="text-xs text-warm font-medium">{t("walletDetail.joinCode")}: </span>
                 <span className="font-mono font-bold text-warm-dark text-base">{wallet.inviteCode}</span>
                 <button
                   onClick={copyInviteCode}
                   className="ml-2 text-xs text-warm hover:text-warm-dark font-medium"
                 >
-                  📋 Copiar
+                  📋 {t("walletDetail.copy")}
                 </button>
               </div>
             )}
@@ -650,16 +684,16 @@ export default function WalletDetailPage() {
                     setNewName(wallet?.name || "");
                     setShowEditNameModal(true);
                   }}
-                  className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="btn-edit"
                 >
-                  ✏️ Editar
+                  ✏️ {t("walletDetail.edit")}
                 </button>
                 {!wallet?.isDefault && (
                   <button
                     onClick={handleDeleteWallet}
-                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+                    className="btn-delete"
                   >
-                    🗑️ Eliminar
+                    🗑️ {t("walletDetail.delete")}
                   </button>
                 )}
               </div>
@@ -673,13 +707,13 @@ export default function WalletDetailPage() {
       {wallet?.type === "GROUP" && wallet.members && wallet.members.length > 0 && (
         <section className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-warm-dark">Participantes</h2>
+            <h2 className="text-lg font-semibold text-warm-dark">{t("walletDetail.participants")}</h2>
             {currentUser && wallet.members.some(m => m.userId === currentUser.id) && (
               <button
                 onClick={handleLeaveWallet}
                 className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
               >
-                Salirse de la billetera
+                {t("walletDetail.leaveWallet")}
               </button>
             )}
           </div>
@@ -700,29 +734,29 @@ export default function WalletDetailPage() {
                       </p>
                       {isNewMember && (
                         <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs text-white font-medium">
-                          Nuevo
+                          {t("walletDetail.new")}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-warm mt-0.5">
-                      {member.role === "OWNER" ? "Dueño" : "Miembro"}
+                      {member.role === "OWNER" ? t("walletDetail.owner") : t("walletDetail.member")}
                       {joinedDate && (
-                        <span> • Desde {joinedDate.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })}</span>
+                        <span> • {t("walletDetail.since")} {joinedDate.toLocaleDateString(language === "es" ? "es-CO" : "en-US", { month: 'short', year: 'numeric' })}</span>
                       )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     {member.role === "OWNER" && (
                       <span className="rounded-full bg-gradient-orange px-2.5 py-0.5 text-xs text-white font-medium">
-                        Dueño
+                        {t("walletDetail.owner")}
                       </span>
                     )}
                     {isOwner && member.role !== "OWNER" && (
                       <button
                         onClick={() => handleRemoveMember(member.id)}
-                        className="rounded-full border border-rose-300 px-2.5 py-0.5 text-xs text-rose-600 hover:bg-rose-50 transition"
+                        className="btn-delete"
                       >
-                        ✕ Remover
+                        ✕ {t("walletDetail.remove")}
                       </button>
                     )}
                   </div>
@@ -737,7 +771,7 @@ export default function WalletDetailPage() {
       {wallet?.type === "GROUP" && (
         <section className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-warm-dark">Metas</h2>
+            <h2 className="text-lg font-semibold text-warm-dark">{t("walletDetail.goals")}</h2>
             {isOwner && (
               <button
                 onClick={() => {
@@ -749,17 +783,49 @@ export default function WalletDetailPage() {
                 }}
                 className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
               >
-                + Crear meta
+                + {t("walletDetail.createGoal")}
               </button>
             )}
           </div>
-          {goals.length === 0 ? (
-            <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
-              {isOwner ? "Aún no hay metas. Crea una para comenzar." : "Aún no hay metas creadas."}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {goals.map((goal) => {
+          {/* Tabs para pendientes y cumplidas */}
+          <div className="flex gap-2 border-b border-[#E8E2DE] mb-4">
+            <button
+              onClick={() => setActiveTab("pending")}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "pending"
+                  ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
+                  : "text-warm hover:text-warm-dark"
+              }`}
+            >
+              Pendientes ({goals.filter(g => g.status !== "ACHIEVED").length})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("achieved");
+                if (achievedGoals.length === 0) {
+                  loadAchievedGoals();
+                }
+              }}
+              className={`px-4 py-2 text-sm font-medium transition ${
+                activeTab === "achieved"
+                  ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
+                  : "text-warm hover:text-warm-dark"
+              }`}
+            >
+              Cumplidas ({achievedGoals.length})
+            </button>
+          </div>
+
+          {/* Metas pendientes */}
+          {activeTab === "pending" && (
+            <>
+              {goals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
+                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
+                  {isOwner ? t("walletDetail.noPendingGoalsOwner") : t("walletDetail.noPendingGoals")}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {goals.filter(g => g.status !== "ACHIEVED").map((goal) => {
                 const current = Number(goal.currentAmount);
                 const target = Number(goal.targetAmount);
                 const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
@@ -792,6 +858,11 @@ export default function WalletDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-warm-dark text-base">{goal.name}</h3>
+                        </div>
+                        {goal.description && (
+                          <p className="text-sm text-warm mb-2">{goal.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mb-1">
                           {isOwnerOfGoal && (
                             <div className="flex gap-1">
                               {goal.status === "ACTIVE" && (
@@ -809,7 +880,7 @@ export default function WalletDetailPage() {
                                     }
                                   }}
                                   className="text-xs text-amber-600 hover:text-amber-700"
-                                  title="Pausar meta"
+                                  title={t("walletDetail.pauseGoal")}
                                 >
                                   ⏸️
                                 </button>
@@ -829,7 +900,7 @@ export default function WalletDetailPage() {
                                     }
                                   }}
                                   className="text-xs text-emerald-600 hover:text-emerald-700"
-                                  title="Reactivar meta"
+                                  title={t("walletDetail.reactivateGoal")}
                                 >
                                   ▶️
                                 </button>
@@ -839,17 +910,18 @@ export default function WalletDetailPage() {
                                   setEditGoalName(goal.name);
                                   setEditGoalAmount(goal.targetAmount);
                                   setEditGoalDeadline(goal.deadline || "");
+                                  setEditGoalDescription(goal.description || "");
                                   setEditGoalError("");
                                   setShowEditGoalModal(goal.id);
                                 }}
-                                className="text-xs text-warm hover:text-warm-dark"
-                                title="Editar meta"
+                                className="btn-edit-icon"
+                                title={t("walletDetail.editGoal")}
                               >
                                 ✏️
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (!confirm("¿Estás seguro de eliminar esta meta?")) return;
+                                  if (!confirm(t("walletDetail.confirmDeleteGoal"))) return;
                                   try {
                                     await api(`/goals/${goal.id}`, { method: "DELETE" });
                                     const updated = await api<Goal[]>(`/goals/wallet/${id}`);
@@ -858,15 +930,15 @@ export default function WalletDetailPage() {
                                     alert(e.message || "Error al eliminar meta");
                                   }
                                 }}
-                                className="text-xs text-rose-600 hover:text-rose-700"
-                                title="Eliminar meta"
+                                className="btn-delete-icon"
+                                title={t("walletDetail.deleteGoal")}
                               >
                                 🗑️
                               </button>
                               {goal.status === "ACTIVE" && (
                                 <button
                                   onClick={async () => {
-                                    if (!confirm("¿Estás seguro de cancelar esta meta?")) return;
+                                    if (!confirm(t("walletDetail.confirmCancelGoal"))) return;
                                     try {
                                       await api(`/goals/${goal.id}`, {
                                         method: "PATCH",
@@ -879,7 +951,7 @@ export default function WalletDetailPage() {
                                     }
                                   }}
                                   className="text-xs text-gray-600 hover:text-gray-700"
-                                  title="Cancelar meta"
+                                  title={t("walletDetail.cancelGoal")}
                                 >
                                   ✕
                                 </button>
@@ -892,12 +964,12 @@ export default function WalletDetailPage() {
                         </p>
                         {goal.createdAt && (
                           <p className="text-xs text-warm mt-0.5">
-                            Creada: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
+                            {t("walletDetail.created")}: {new Date(goal.createdAt).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                         )}
                         {goal.deadline && (
                           <p className="text-xs text-warm mt-0.5">
-                            Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
+                            {t("walletDetail.goalDeadline")}: {new Date(goal.deadline).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                         )}
                       </div>
@@ -975,10 +1047,75 @@ export default function WalletDetailPage() {
                         </div>
                       </div>
                     )}
+                    {/* Botón para marcar como cumplida */}
+                    {isAchieved && goal.status !== "ACHIEVED" && goal.status !== "CANCELLED" && (
+                      <div className="mt-4 pt-4 border-t border-[#E8E2DE]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsAchieved(goal.id, goal.name);
+                          }}
+                          className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+                        >
+                          🎉 Marcar como cumplida
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Metas cumplidas */}
+          {activeTab === "achieved" && (
+            <>
+              {achievedGoals.length === 0 ? (
+                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
+                  {t("walletDetail.noAchievedGoals")}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {achievedGoals.map((goal) => {
+                    const current = Number(goal.currentAmount);
+                    const target = Number(goal.targetAmount);
+                    
+                    return (
+                      <div
+                        key={goal.id}
+                        className="rounded-lg border-2 border-emerald-500 bg-emerald-50/30 px-4 py-4"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-warm-dark text-base">
+                                ✅ {goal.name}
+                              </h3>
+                              <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                                Cumplida
+                              </span>
+                            </div>
+                            {goal.description && (
+                              <p className="text-sm text-warm mb-2">{goal.description}</p>
+                            )}
+                            <p className="text-sm text-warm">
+                              Objetivo alcanzado: {fmt(target, currency)}
+                            </p>
+                            {goal.createdAt && (
+                              <p className="text-xs text-warm mt-1">
+                                Cumplida: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </section>
       )}
@@ -989,29 +1126,29 @@ export default function WalletDetailPage() {
         {wallet?.type === "PERSONAL" ? (
           <>
             <SummaryCard
-              label="Ingresos"
+              label={t("walletDetail.income")}
               value={fmt(income, currency)}
-              sub="+ entradas"
+              sub={`+ ${t("walletDetail.income").toLowerCase()}`}
               tone="emerald"
             />
             <SummaryCard
-              label="Gastos"
+              label={t("walletDetail.expenses")}
               value={fmt(expense, currency)}
-              sub="- salidas"
+              sub={`- ${t("walletDetail.outflows")}`}
               tone="rose"
             />
             <SummaryCard
-              label="Balance"
+              label={t("walletDetail.balance")}
               value={fmt(income - expense, currency)}
-              sub={income - expense >= 0 ? "= positivo" : "= negativo"}
+              sub={income - expense >= 0 ? t("walletDetail.positive") : t("walletDetail.negative")}
               tone={income - expense >= 0 ? "emerald" : "rose"}
             />
           </>
         ) : (
           <SummaryCard
-            label="Ingresos"
+            label={t("walletDetail.income")}
             value={fmt(income, currency)}
-            sub="+ aportes de usuarios (incluye aportes a metas)"
+            sub={t("walletDetail.plusUserContributions")}
             tone="emerald"
           />
         )}
@@ -1022,31 +1159,31 @@ export default function WalletDetailPage() {
         <h3 className="mb-4 text-lg font-semibold text-warm-dark">Actividad reciente</h3>
         <ul className="space-y-2">
           {recent.length === 0 && <li className="text-warm text-sm">Sin movimientos aún.</li>}
-          {recent.map((t) => (
+          {recent.map((tx) => (
             <li
-              key={t.id}
+              key={tx.id}
               className="flex items-start justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
             >
               <div className="text-xs flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-medium text-warm-dark">
-                    {t.description || "(sin descripción)"}
+                    {tx.description || "(sin descripción)"}
                   </p>
-                  {t.category && (
-                    <span className="text-warm text-xs">• {t.category.name}</span>
+                  {tx.category && (
+                    <span className="text-warm text-xs">• {translateCategory(tx.category, language).name}</span>
                   )}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-warm">
-                    <span className="font-medium">Pagado por:</span> {t.paidBy?.name || t.paidBy?.email || "Usuario"}
+                    <span className="font-medium">Pagado por:</span> {tx.paidBy?.name || tx.paidBy?.email || "Usuario"}
                   </p>
-                  {t.createdBy && t.createdBy.id !== t.paidBy?.id && (
+                  {tx.createdBy && tx.createdBy.id !== tx.paidBy?.id && (
                     <p className="text-warm">
-                      <span className="font-medium">Registrado por:</span> {t.createdBy.name || t.createdBy.email}
+                      <span className="font-medium">Registrado por:</span> {tx.createdBy.name || tx.createdBy.email}
                     </p>
                   )}
                   <p className="text-warm">
-                    <span className="font-medium">Fecha:</span> {new Date(t.date).toLocaleString('es-CO', { 
+                    <span className="font-medium">Fecha:</span> {new Date(tx.date).toLocaleString('es-CO', { 
                       year: 'numeric', 
                       month: 'short', 
                       day: 'numeric', 
@@ -1054,11 +1191,11 @@ export default function WalletDetailPage() {
                       minute: '2-digit' 
                     })}
                   </p>
-                  {t.splits && t.splits.length > 0 && (
+                  {tx.splits && tx.splits.length > 0 && (
                     <p className="text-warm mt-1 text-xs">
-                      Dividido entre {t.splits.length} {t.splits.length === 1 ? 'persona' : 'personas'}
-                      {t.splits.some(s => s.settled) && (
-                        <span className="text-emerald-600"> • {t.splits.filter(s => s.settled).length} {t.splits.filter(s => s.settled).length === 1 ? 'pagado' : 'pagados'}</span>
+                      Dividido entre {tx.splits.length} {tx.splits.length === 1 ? 'persona' : 'personas'}
+                      {tx.splits.some(s => s.settled) && (
+                        <span className="text-emerald-600"> • {tx.splits.filter(s => s.settled).length} {tx.splits.filter(s => s.settled).length === 1 ? 'pagado' : 'pagados'}</span>
                       )}
                     </p>
                   )}
@@ -1067,14 +1204,14 @@ export default function WalletDetailPage() {
               <div className="text-right ml-3">
                 <div
                   className={`font-semibold text-sm ${
-                    t.type === "EXPENSE" ? "text-rose-600" : t.type === "SETTLEMENT" ? "text-indigo-600" : "text-emerald-600"
+                    tx.type === "EXPENSE" ? "text-rose-600" : tx.type === "SETTLEMENT" ? "text-indigo-600" : "text-emerald-600"
                   }`}
                 >
-                  {t.type === "EXPENSE" ? "-" : "+"}
-                  {fmt(toNum(t.amount), currency)}
+                  {tx.type === "EXPENSE" ? "-" : "+"}
+                  {fmt(toNum(tx.amount), currency)}
                 </div>
                 <p className="text-xs text-warm mt-0.5">
-                  {t.type === "EXPENSE" ? "Gasto" : t.type === "SETTLEMENT" ? "Liquidación" : "Ingreso"}
+                  {tx.type === "EXPENSE" ? t("walletDetail.expense") : tx.type === "SETTLEMENT" ? t("walletDetail.settlement") : t("walletDetail.income")}
                 </p>
               </div>
             </li>
@@ -1083,16 +1220,22 @@ export default function WalletDetailPage() {
       </section>
 
       {/* Modal para unirse por código */}
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Unirse a billetera</h2>
-            <p className="text-xs text-warm mb-4">
-              Ingresa el código de la billetera grupal a la que deseas unirte.
-            </p>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false);
+          setJoinCode("");
+          setJoinError("");
+        }}
+        title={t("walletDetail.joinWallet")}
+        maxWidth="sm"
+      >
+        <p className="text-xs text-warm mb-4">
+          {t("walletDetail.joinWalletDescription")}
+        </p>
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Código de billetera</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.walletCode")}</label>
                 <input
                   type="text"
                   value={joinCode}
@@ -1114,34 +1257,40 @@ export default function WalletDetailPage() {
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("walletDetail.cancel")}
                 </button>
                 <button
                   onClick={handleJoin}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Unirse
+                  {t("walletDetail.join")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para crear meta */}
-      {showCreateGoalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Crear nueva meta</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showCreateGoalModal}
+        onClose={() => {
+          setShowCreateGoalModal(false);
+          setGoalName("");
+          setGoalAmount("");
+          setGoalDeadline("");
+          setGoalDescription("");
+          setGoalError("");
+        }}
+        title={t("walletDetail.createGoal")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre de la meta</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalName")}</label>
                 <input
                   type="text"
                   value={goalName}
                   onChange={(e) => setGoalName(e.target.value)}
-                  placeholder="Ej: Viaje a la playa"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("walletDetail.goalNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
@@ -1153,7 +1302,17 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDescription")}</label>
+                <textarea
+                  value={goalDescription}
+                  onChange={(e) => setGoalDescription(e.target.value)}
+                  placeholder={t("walletDetail.goalDescriptionPlaceholder")}
+                  rows={3}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
                 />
               </div>
               <div>
@@ -1175,42 +1334,49 @@ export default function WalletDetailPage() {
                     setGoalName("");
                     setGoalAmount("");
                     setGoalDeadline("");
+                    setGoalDescription("");
                     setGoalError("");
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("walletDetail.cancel")}
                 </button>
                 <button
                   onClick={handleCreateGoal}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Crear meta
+                  {t("walletDetail.create")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para editar meta */}
-      {showEditGoalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Editar meta</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={!!showEditGoalModal}
+        onClose={() => {
+          setShowEditGoalModal(null);
+          setEditGoalName("");
+          setEditGoalAmount("");
+          setEditGoalDeadline("");
+          setEditGoalDescription("");
+          setEditGoalError("");
+        }}
+        title={t("walletDetail.editGoal")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre de la meta</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalName")}</label>
                 <input
                   type="text"
                   value={editGoalName}
                   onChange={(e) => setEditGoalName(e.target.value)}
-                  placeholder="Ej: Viaje a la playa"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("walletDetail.goalNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalAmount")}</label>
                 <input
                   type="number"
                   value={editGoalAmount}
@@ -1218,11 +1384,21 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDescription")}</label>
+                <textarea
+                  value={editGoalDescription}
+                  onChange={(e) => setEditGoalDescription(e.target.value)}
+                  placeholder={t("walletDetail.goalDescriptionPlaceholder")}
+                  rows={3}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDeadline")}</label>
                 <input
                   type="date"
                   value={editGoalDeadline}
@@ -1240,6 +1416,7 @@ export default function WalletDetailPage() {
                     setEditGoalName("");
                     setEditGoalAmount("");
                     setEditGoalDeadline("");
+                    setEditGoalDescription("");
                     setEditGoalError("");
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
@@ -1263,6 +1440,7 @@ export default function WalletDetailPage() {
                         method: "PATCH",
                         body: JSON.stringify({
                           name: editGoalName.trim(),
+                          description: editGoalDescription.trim() || null,
                           targetAmount: amount,
                           deadline: editGoalDeadline || null,
                         }),
@@ -1279,28 +1457,32 @@ export default function WalletDetailPage() {
                   }}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Guardar cambios
+                  {t("walletDetail.update")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para editar nombre */}
-      {showEditNameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Editar nombre</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showEditNameModal}
+        onClose={() => {
+          setShowEditNameModal(false);
+          setNewName("");
+          setNameError("");
+        }}
+        title={t("wallets.editName")}
+        maxWidth="sm"
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nuevo nombre</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("wallets.newName")}</label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Nombre de la billetera"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("walletDetail.walletNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               {nameError && (
@@ -1315,29 +1497,37 @@ export default function WalletDetailPage() {
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("walletDetail.cancel")}
                 </button>
                 <button
                   onClick={handleUpdateName}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Guardar
+                  {t("walletDetail.save")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para crear transacción */}
-      {showTransactionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Nueva transacción</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showTransactionModal}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setTxType("EXPENSE");
+          setTxCategory("");
+          setTxAmount("");
+          setTxDesc("");
+          setTxError("");
+          setShowSplitModal(false);
+          setSplitMembers([]);
+        }}
+        title={t("walletDetail.newTransaction")}
+      >
+        <div className="space-y-3">
               {wallet?.type !== "GROUP" && (
                 <div>
-                  <label className="block text-xs font-medium text-warm-dark mb-1.5">Tipo</label>
+                  <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("transactions.type")}</label>
                   <select
                     value={txType}
                     onChange={(e) => {
@@ -1346,14 +1536,14 @@ export default function WalletDetailPage() {
                     }}
                     className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                   >
-                    <option value="EXPENSE">Gasto</option>
-                    <option value="INCOME">Ingreso</option>
+                    <option value="EXPENSE">{t("walletDetail.expense")}</option>
+                    <option value="INCOME">{t("walletDetail.income")}</option>
                   </select>
                 </div>
               )}
               {wallet?.type === "GROUP" && (
-                <div className="rounded-lg bg-gradient-to-r from-[#FFD3A0]/30 to-[#FE8625]/20 border border-[#FE8625]/30 px-3 py-2 text-xs font-medium text-warm-dark">
-                  Aporte (solo permitido en billeteras grupales)
+                <div className="rounded-lg bg-gradient-to-r from-[#E8D5E8]/30 to-[#DA70D6]/20 border border-[#DA70D6]/30 px-3 py-2 text-xs font-medium text-warm-dark">
+                  {t("walletDetail.contribution")}
                 </div>
               )}
               {wallet?.type === "GROUP" && txType === "EXPENSE" && (
@@ -1372,7 +1562,7 @@ export default function WalletDetailPage() {
                       }}
                       className="mr-2"
                     />
-                    Dividir gasto entre miembros
+                    {t("walletDetail.splitExpense")}
                   </label>
                   {showSplitModal && wallet?.members && (
                     <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 p-3">
@@ -1403,7 +1593,7 @@ export default function WalletDetailPage() {
                       })}
                       {txAmount && (
                         <div className="mt-2 pt-2 border-t border-[#E8E2DE] text-xs">
-                          <span className="text-warm">Total dividido: </span>
+                          <span className="text-warm">{t("walletDetail.totalSplit")}: </span>
                           <span className={`font-medium ${
                             Math.abs((splitMembers.reduce((sum, s) => sum + s.amount, 0)) - parseFloat(txAmount)) < 0.01
                               ? "text-emerald-600"
@@ -1411,7 +1601,7 @@ export default function WalletDetailPage() {
                           }`}>
                             {fmt(splitMembers.reduce((sum, s) => sum + s.amount, 0), currency)}
                           </span>
-                          <span className="text-warm"> / Total: {fmt(parseFloat(txAmount) || 0, currency)}</span>
+                          <span className="text-warm"> / {t("walletDetail.total")}: {fmt(parseFloat(txAmount) || 0, currency)}</span>
                         </div>
                       )}
                     </div>
@@ -1419,20 +1609,21 @@ export default function WalletDetailPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Categoría</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.category")}</label>
                 <select
                   value={txCategory}
                   onChange={(e) => setTxCategory(e.target.value)}
                   className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                 >
-                  <option value="">Selecciona una categoría</option>
-                  {(txType === "INCOME" ? incCats : expCats).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  <option value="">{t("walletDetail.selectCategory")}</option>
+                  {(txType === "INCOME" ? incCats : expCats).map(c => {
+                    const translated = translateCategory(c, language);
+                    return <option key={c.id} value={c.id}>{translated.name}</option>;
+                  })}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.amount")}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1440,17 +1631,17 @@ export default function WalletDetailPage() {
                   value={txAmount}
                   onChange={(e) => setTxAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.description")}</label>
                 <input
                   type="text"
                   value={txDesc}
                   onChange={(e) => setTxDesc(e.target.value)}
-                  placeholder="Ej: Mercado, Netflix..."
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("walletDetail.descriptionPlaceholder")}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               {txError && (
@@ -1469,21 +1660,18 @@ export default function WalletDetailPage() {
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("walletDetail.cancel")}
                 </button>
                 <button
                   onClick={handleCreateTransaction}
                   disabled={!txCategory || !txAmount.trim()}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white disabled:opacity-50 disabled:hover:scale-100"
                 >
-                  Crear transacción
+                  {t("walletDetail.createTransaction")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
-
+      </Modal>
 
       {/* Modal de detalle de meta */}
       {showGoalDetailModal && (() => {
@@ -1491,28 +1679,23 @@ export default function WalletDetailPage() {
         if (!goal) return null;
         
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="card-glass p-6 w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-warm-dark">{goal.name}</h2>
-                <button
-                  onClick={() => {
-                    setShowGoalDetailModal(null);
-                    setGoalTransactionAmount("");
-                    setGoalTransactionDesc("");
-                    setGoalTransactionError("");
-                  }}
-                  className="text-warm hover:text-warm-dark text-xl"
-                >
-                  ✕
-                </button>
-              </div>
+          <Modal
+            isOpen={!!showGoalDetailModal}
+            onClose={() => {
+              setShowGoalDetailModal(null);
+              setGoalTransactionAmount("");
+              setGoalTransactionDesc("");
+              setGoalTransactionError("");
+            }}
+            title={goal.name}
+            maxWidth="2xl"
+          >
 
               <div className="space-y-4">
                 {/* Información de la meta */}
                 <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
                   <p className="text-sm text-warm-dark mb-2">
-                    Progreso: {fmt(Number(goal.currentAmount), currency)} / {fmt(Number(goal.targetAmount), currency)}
+                    {t("walletDetail.goalProgress")}: {fmt(Number(goal.currentAmount), currency)} / {fmt(Number(goal.targetAmount), currency)}
                   </p>
                   <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
                     <div
@@ -1524,28 +1707,28 @@ export default function WalletDetailPage() {
 
                 {/* Botón para hacer transacción */}
                 <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-warm-dark mb-3">Hacer aporte a la meta</h3>
+                  <h3 className="text-sm font-semibold text-warm-dark mb-3">{t("walletDetail.makeContribution")}</h3>
                   <div className="space-y-2">
                     <div>
-                      <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto</label>
+                      <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.contributionAmount")}</label>
                       <input
                         type="number"
                         step="0.01"
                         min="0.01"
                         value={goalTransactionAmount}
                         onChange={(e) => setGoalTransactionAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                        placeholder={t("walletDetail.contributionAmountPlaceholder")}
+                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                      <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.description")}</label>
                       <input
                         type="text"
                         value={goalTransactionDesc}
                         onChange={(e) => setGoalTransactionDesc(e.target.value)}
-                        placeholder="Ej: Aporte mensual"
-                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                        placeholder={t("walletDetail.contributionAmountPlaceholder")}
+                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                       />
                     </div>
                     {goalTransactionError && (
@@ -1561,8 +1744,7 @@ export default function WalletDetailPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+          </Modal>
         );
       })()}
 
@@ -1571,11 +1753,44 @@ export default function WalletDetailPage() {
         <div className="fixed top-4 right-4 z-50 animate-slide-up">
           <div className="card-glass px-4 py-3 shadow-lg border border-emerald-500/50">
             <p className="text-sm font-medium text-emerald-600">
-              ✓ Código copiado exitosamente
+              {t("walletDetail.codeCopied")}
             </p>
           </div>
         </div>
       )}
+
+      {/* Modal de felicitación por meta cumplida */}
+      <Modal
+        isOpen={showAchievementModal}
+        onClose={() => {
+          setShowAchievementModal(false);
+          setAchievedGoalName("");
+        }}
+        title=""
+        maxWidth="md"
+      >
+        <div className="text-center">
+          <div className="text-6xl mb-4">🎉</div>
+          <h2 className="text-2xl font-bold text-warm-dark mb-2">
+            ¡Felicitaciones!
+          </h2>
+          <p className="text-lg text-warm mb-6">
+            Has alcanzado tu meta: <strong>{achievedGoalName}</strong>
+          </p>
+          <p className="text-sm text-warm mb-6">
+            ¡Sigue así! Cada meta cumplida es un paso más hacia tus objetivos financieros.
+          </p>
+          <button
+            onClick={() => {
+              setShowAchievementModal(false);
+              setAchievedGoalName("");
+            }}
+            className="btn-orange rounded-lg px-6 py-3 text-base font-medium text-white"
+          >
+            ¡Genial!
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

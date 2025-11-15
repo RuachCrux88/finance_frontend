@@ -6,11 +6,14 @@ import { api, AuthError } from "@/lib/api";
 import { fetchMe } from "@/utils/session";
 import type { Wallet, WalletType, Goal, User } from "@/types";
 import AuthRequired from "@/components/AuthRequired";
+import Modal from "@/components/Modal";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const currencies = ["COP","USD","EUR","MXN","ARS"];
 
 export default function WalletsPage() {
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Wallet[]>([]);
   const [name, setName] = useState("");
@@ -101,7 +104,7 @@ export default function WalletsPage() {
 
   function copyInviteCode(code: string) {
     navigator.clipboard.writeText(code);
-    alert("Código copiado al portapapeles");
+    alert(t("wallets.codeCopied"));
   }
 
   useEffect(() => { 
@@ -122,7 +125,7 @@ export default function WalletsPage() {
 
   async function handleJoin() {
     if (!joinCode.trim()) {
-      setJoinError("Por favor ingresa un código");
+      setJoinError(t("wallets.pleaseEnterCode"));
       return;
     }
 
@@ -136,12 +139,12 @@ export default function WalletsPage() {
       setShowJoinModal(false);
       await load();
     } catch (e: any) {
-      setJoinError(e.message || "Error al unirse a la billetera");
+      setJoinError(e.message || t("wallets.errorJoining"));
     }
   }
 
   const fmt = (n: number, currency: string = "COP") => {
-    return new Intl.NumberFormat('es-CO', { 
+    return new Intl.NumberFormat(language === "es" ? "es-CO" : "en-US", { 
       style: "currency", 
       currency,
       minimumFractionDigits: 0,
@@ -157,83 +160,83 @@ export default function WalletsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">Billeteras</h1>
-          <p className="text-warm text-sm">Gestiona tus billeteras personales y grupales</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">{t("wallets.title")}</h1>
+          <p className="text-warm text-sm">{t("wallets.subtitle")}</p>
         </div>
         <button
           onClick={() => setShowJoinModal(true)}
           className="rounded-lg border border-[#E8E2DE] px-4 py-2 text-sm font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
         >
-          + Unirse por código
+          + {t("wallets.joinByCode")}
         </button>
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <button
           onClick={() => setFilter("all")}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
             filter === "all"
-              ? "btn-orange text-white"
-              : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
+              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
+              : "border border-[#DA70D6]/40 bg-white/60 text-warm-dark hover:bg-white/80 hover:border-[#DA70D6]/60 hover:shadow-md"
           }`}
         >
-          Todas
+          {t("wallets.all")}
         </button>
         <button
           onClick={() => setFilter("PERSONAL")}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
             filter === "PERSONAL"
-              ? "btn-orange text-white"
-              : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
+              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
+              : "border border-[#DA70D6]/40 bg-white/60 text-warm-dark hover:bg-white/80 hover:border-[#DA70D6]/60 hover:shadow-md"
           }`}
         >
-          Personales
+          {t("wallets.personalPlural")}
         </button>
         <button
           onClick={() => setFilter("GROUP")}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
             filter === "GROUP"
-              ? "btn-orange text-white"
-              : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
+              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
+              : "border border-[#DA70D6]/40 bg-white/60 text-warm-dark hover:bg-white/80 hover:border-[#DA70D6]/60 hover:shadow-md"
           }`}
         >
-          Compartidas
+          {t("wallets.sharedPlural")}
         </button>
       </div>
 
       {/* Crear */}
       <section className="card-glass p-5">
-        <h2 className="text-lg font-semibold text-warm-dark mb-4">Crear nueva billetera</h2>
+        <h2 className="text-lg font-semibold text-warm-dark mb-4">{t("wallets.createWallet")}</h2>
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
-            <label className="text-xs text-warm font-medium mb-1.5 block">Nombre</label>
+            <label className="text-xs text-warm font-medium mb-1.5 block">{t("wallets.walletName")}</label>
             <input
               value={name}
               onChange={(e)=>setName(e.target.value)}
               placeholder="Ej: Viaje a la costa"
-              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
             />
           </div>
 
           <div>
-            <label className="text-xs text-warm font-medium mb-1.5 block">Tipo</label>
+            <label className="text-xs text-warm font-medium mb-1.5 block">{t("wallets.walletType")}</label>
             <select
               value={type}
               onChange={(e)=>setType(e.target.value as WalletType)}
-              className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+              className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
             >
-              <option value="PERSONAL">Personal</option>
-              <option value="GROUP">Compartida (grupo)</option>
+              <option value="PERSONAL">{t("wallets.personal")}</option>
+              <option value="GROUP">{t("wallets.group")}</option>
             </select>
           </div>
 
           <div>
-            <label className="text-xs text-warm font-medium mb-1.5 block">Moneda</label>
+            <label className="text-xs text-warm font-medium mb-1.5 block">{t("wallets.currency")}</label>
             <select
               value={currency}
               onChange={(e)=>setCur(e.target.value)}
-              className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+              className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
             >
               {currencies.map(c=> <option key={c} value={c}>{c}</option>)}
             </select>
@@ -244,7 +247,7 @@ export default function WalletsPage() {
             disabled={!canCreate}
             className="btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
           >
-            Crear
+            {t("wallets.createWallet")}
           </button>
         </div>
         {!!err && <p className="mt-3 text-xs text-rose-600 font-medium">{err}</p>}
@@ -255,7 +258,7 @@ export default function WalletsPage() {
         {loading && <CardSkeleton />}
         {!loading && filteredItems.length === 0 && (
           <div className="card-glass px-6 py-8 text-center">
-            <p className="text-warm text-sm">Aún no tienes billeteras de este tipo.</p>
+            <p className="text-warm text-sm">{t("wallets.noWalletsFiltered")}</p>
           </div>
         )}
         {filteredItems.map(w => (
@@ -264,7 +267,7 @@ export default function WalletsPage() {
               <div className="flex-1">
                 <h3 className="text-base font-semibold text-warm-dark mb-1">{w.name}</h3>
                 <p className="text-xs text-warm">
-                  {w.type === "GROUP" ? "Compartida" : "Personal"} • {w.currency}
+                  {w.type === "GROUP" ? t("wallets.shared") : t("wallets.personal")} • {w.currency}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -276,19 +279,19 @@ export default function WalletsPage() {
                         setEditWalletName(w.name);
                         setEditWalletError("");
                       }}
-                      className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                      className="btn-edit"
                     >
-                      ✏️ Editar
+                      ✏️ {t("common.edit")}
                     </button>
                     <button
                       onClick={() => handleDelete(w.id)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      className={`btn-delete ${
                         deleteConfirm === w.id
-                          ? "bg-rose-500 text-white"
-                          : "border border-rose-300 text-rose-600 hover:bg-rose-50"
+                          ? "bg-rose-500 text-white border-rose-500 hover:bg-rose-600"
+                          : ""
                       }`}
                     >
-                      {deleteConfirm === w.id ? "✓ Confirmar" : "🗑️ Eliminar"}
+                      {deleteConfirm === w.id ? "✓ " + t("wallets.confirm") : "🗑️ " + t("common.delete")}
                     </button>
                   </>
                 )}
@@ -296,7 +299,7 @@ export default function WalletsPage() {
                   onClick={() => router.push(`/wallets/${w.id}`)}
                   className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Ver →
+                  {t("wallets.view")} →
                 </button>
               </div>
             </header>
@@ -305,7 +308,7 @@ export default function WalletsPage() {
             {w.type === "GROUP" && w.inviteCode && (
               <div className="mb-3 p-2 rounded-lg bg-[#FEFFFF]/50 border border-[#E8E2DE]">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-warm font-medium">Código: </span>
+                  <span className="text-xs text-warm font-medium">{t("wallets.joinCode")}: </span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-warm-dark text-sm">{w.inviteCode}</span>
                     <button
@@ -366,22 +369,28 @@ export default function WalletsPage() {
       </section>
 
       {/* Modal para unirse por código */}
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Unirse a billetera</h2>
-            <p className="text-xs text-warm mb-4">
-              Ingresa el código de la billetera grupal a la que deseas unirte.
-            </p>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false);
+          setJoinCode("");
+          setJoinError("");
+        }}
+        title={t("wallets.joinWallet")}
+        maxWidth="sm"
+      >
+        <p className="text-xs text-warm mb-4">
+          {t("wallets.joinCodePlaceholder")}
+        </p>
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Código de billetera</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("wallets.joinCode")}</label>
                 <input
                   type="text"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="ABCD1234"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 font-mono"
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50 font-mono"
                   maxLength={8}
                 />
               </div>
@@ -397,34 +406,38 @@ export default function WalletsPage() {
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleJoin}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Unirse
+                  {t("wallets.joinWallet")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para editar nombre de billetera */}
-      {editWalletId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-sm mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Editar nombre</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={!!editWalletId}
+        onClose={() => {
+          setEditWalletId(null);
+          setEditWalletName("");
+          setEditWalletError("");
+        }}
+        title={t("wallets.editName")}
+        maxWidth="sm"
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nuevo nombre</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("wallets.newName")}</label>
                 <input
                   type="text"
                   value={editWalletName}
                   onChange={(e) => setEditWalletName(e.target.value)}
-                  placeholder="Nombre de la billetera"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("wallets.walletName")}
+                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               {editWalletError && (
@@ -439,12 +452,12 @@ export default function WalletsPage() {
                   }}
                   className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={async () => {
                     if (!editWalletName.trim()) {
-                      setEditWalletError("El nombre es requerido");
+                      setEditWalletError(t("dashboard.nameRequired"));
                       return;
                     }
                     setEditWalletError("");
@@ -457,18 +470,16 @@ export default function WalletsPage() {
                       setEditWalletName("");
                       await load();
                     } catch (e: any) {
-                      setEditWalletError(e.message || "Error al actualizar nombre");
+                      setEditWalletError(e.message || t("wallets.errorUpdatingName"));
                     }
                   }}
                   className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white"
                 >
-                  Guardar
+                  {t("common.save")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

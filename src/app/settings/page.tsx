@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { fetchMe, doLogout } from "@/utils/session";
 import type { User } from "@/types";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Globe } from "phosphor-react";
 
 // Generar cadena aleatoria de letras (mayúsculas y minúsculas, sin tildes)
 function generateRandomString(length: number = 8): string {
@@ -18,6 +20,7 @@ function generateRandomString(length: number = 8): string {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,27 +40,27 @@ export default function SettingsPage() {
         const me = await fetchMe();
         setUser(me);
       } catch (e: any) {
-        setError(e.message || "Error al cargar información del usuario");
+        setError(e.message || t("settings.errorLoadingUser"));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [t]);
 
   async function handleDeleteAccount() {
     setError("");
     
     if (!deleteConfirm) {
-      setError("Debes marcar la casilla de confirmación");
+      setError(t("settings.errorDeleteCheckbox"));
       return;
     }
 
     if (deleteConfirmText.trim() !== deleteConfirmCode) {
-      setError(`Debes escribir exactamente: ${deleteConfirmCode}`);
+      setError(t("settings.errorDeleteCode", { code: deleteConfirmCode }));
       return;
     }
 
-    if (!confirm("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.")) {
+    if (!confirm(t("settings.deleteAccountTitle"))) {
       return;
     }
 
@@ -70,7 +73,7 @@ export default function SettingsPage() {
       await doLogout();
       router.push("/login");
     } catch (e: any) {
-      setError(e.message || "Error al eliminar la cuenta");
+      setError(e.message || t("settings.errorDeletingAccount"));
       setDeleting(false);
     }
   }
@@ -78,7 +81,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="card-glass p-6 text-center">
-        <p className="text-warm">Cargando...</p>
+        <p className="text-warm">{t("common.loading")}</p>
       </div>
     );
   }
@@ -86,7 +89,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="card-glass p-6 text-center">
-        <p className="text-rose-600">{error || "No se pudo cargar la información del usuario"}</p>
+        <p className="text-rose-600">{error || t("settings.errorUserNotFound")}</p>
       </div>
     );
   }
@@ -96,31 +99,31 @@ export default function SettingsPage() {
         <div className="space-y-6">
           {/* Encabezado */}
           <div className="card-glass p-6">
-            <h1 className="text-2xl font-semibold text-warm-dark mb-2">Configuración del Perfil</h1>
-            <p className="text-warm text-sm">Gestiona tu información personal y cuenta</p>
+            <h1 className="text-2xl font-semibold text-warm-dark mb-2">{t("settings.title")}</h1>
+            <p className="text-warm text-sm">{t("settings.subtitle")}</p>
           </div>
 
           {/* Información del usuario */}
           <div className="card-glass p-6">
-            <h2 className="text-lg font-semibold text-warm-dark mb-4">Información Personal</h2>
+            <h2 className="text-lg font-semibold text-warm-dark mb-4">{t("settings.personalInfo")}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-warm-dark mb-1.5">Nombre</label>
+                <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.name")}</label>
                 <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
-                  {user.name || "No especificado"}
+                  {user.name || t("settings.notSpecified")}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-warm-dark mb-1.5">Correo electrónico</label>
+                <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.email")}</label>
                 <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
                   {user.email}
                 </div>
               </div>
               {user.createdAt && (
                 <div>
-                  <label className="block text-sm font-medium text-warm-dark mb-1.5">Fecha de registro</label>
+                  <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.registrationDate")}</label>
                   <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
-                    {new Date(user.createdAt).toLocaleDateString('es-CO', {
+                    {new Date(user.createdAt).toLocaleDateString(language === "es" ? "es-CO" : "en-US", {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -131,11 +134,41 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Configuración de idioma */}
+          <div className="card-glass p-6">
+            <h2 className="text-lg font-semibold text-warm-dark mb-4">{t("settings.language")}</h2>
+            <p className="text-warm text-sm mb-4">{t("settings.languageDescription")}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setLanguage("es")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition ${
+                  language === "es"
+                    ? "btn-orange text-white border-transparent"
+                    : "border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                }`}
+              >
+                <Globe size={20} weight={language === "es" ? "fill" : "regular"} />
+                <span className="font-medium">Español</span>
+              </button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition ${
+                  language === "en"
+                    ? "btn-orange text-white border-transparent"
+                    : "border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                }`}
+              >
+                <Globe size={20} weight={language === "en" ? "fill" : "regular"} />
+                <span className="font-medium">English</span>
+              </button>
+            </div>
+          </div>
+
           {/* Zona de peligro - Eliminar cuenta */}
           <div className="card-glass p-6 border-2 border-rose-200">
-            <h2 className="text-lg font-semibold text-rose-600 mb-2">Zona de Peligro</h2>
+            <h2 className="text-lg font-semibold text-rose-600 mb-2">{t("settings.dangerZone")}</h2>
             <p className="text-warm text-sm mb-4">
-              Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, ten cuidado.
+              {t("settings.dangerZoneDescription")}
             </p>
             
             <div className="space-y-3">
@@ -148,14 +181,14 @@ export default function SettingsPage() {
                   className="w-4 h-4 rounded border-[#E8E2DE] text-rose-600 focus:ring-rose-500"
                 />
                 <label htmlFor="deleteConfirm" className="text-sm text-warm-dark">
-                  Entiendo que esta acción no se puede deshacer
+                  {t("settings.deleteAccountConfirm")}
                 </label>
               </div>
               
               {deleteConfirm && (
                 <div>
                   <label className="block text-sm font-medium text-warm-dark mb-1.5">
-                    Escribe <span className="font-mono text-rose-600 font-bold">{deleteConfirmCode}</span> para confirmar
+                    {t("settings.deleteAccountCode", { code: deleteConfirmCode })}
                   </label>
                   <input
                     type="text"
@@ -176,7 +209,7 @@ export default function SettingsPage() {
                 disabled={!deleteConfirm || deleteConfirmText.trim() !== deleteConfirmCode || deleting}
                 className="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
-                {deleting ? "Eliminando..." : "Eliminar mi cuenta"}
+                {deleting ? t("settings.deleting") : t("settings.deleteAccountButton")}
               </button>
             </div>
           </div>

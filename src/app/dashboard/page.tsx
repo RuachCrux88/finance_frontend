@@ -5,10 +5,15 @@ import Link from "next/link";
 import { api, AuthError } from "@/lib/api";
 import { fetchMe } from "@/utils/session";
 import type { Transaction, ChartDataPoint, Goal, PaymentReminder, Wallet, Category, User } from "@/types";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts';
 import { convertCurrency, CURRENCIES } from "@/utils/currency";
+import Modal from "@/components/Modal";
+import { Target, Sparkle } from "phosphor-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translateCategory } from "@/utils/categoryTranslations";
 
 export default function Dashboard() {
+  const { language, t } = useLanguage();
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [history, setHistory] = useState<Transaction[]>([]);
   const [userGoals, setUserGoals] = useState<Goal[]>([]);
@@ -20,6 +25,24 @@ export default function Dashboard() {
   const [savingsGoal, setSavingsGoal] = useState<string>("");
   const [savingsError, setSavingsError] = useState("");
   const [showSavingsModal, setShowSavingsModal] = useState(false);
+  const [goalName, setGoalName] = useState<string>("");
+  const [goalDescription, setGoalDescription] = useState("");
+  const [goalDeadline, setGoalDeadline] = useState<string>("");
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [achievedGoalName, setAchievedGoalName] = useState("");
+  const [activeGoalTab, setActiveGoalTab] = useState<"pending" | "achieved">("pending");
+  const [achievedGoals, setAchievedGoals] = useState<Goal[]>([]);
+  const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [goalProgress, setGoalProgress] = useState<Record<string, any[]>>({});
+  const [showEditGoalModal, setShowEditGoalModal] = useState<string | null>(null);
+  const [editGoalName, setEditGoalName] = useState("");
+  const [editGoalDescription, setEditGoalDescription] = useState("");
+  const [editGoalDeadline, setEditGoalDeadline] = useState("");
+  const [editGoalAmount, setEditGoalAmount] = useState("");
+  const [editGoalError, setEditGoalError] = useState("");
+  const [showGoalDetailModal, setShowGoalDetailModal] = useState<string | null>(null);
+  const [showDeleteGoalConfirm, setShowDeleteGoalConfirm] = useState<string | null>(null);
+  const [showDeleteReminderConfirm, setShowDeleteReminderConfirm] = useState<string | null>(null);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [showEditReminderModal, setShowEditReminderModal] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
@@ -33,32 +56,53 @@ export default function Dashboard() {
   const [showRenewDialog, setShowRenewDialog] = useState(false);
   const [reminderToMark, setReminderToMark] = useState<string | null>(null);
   const [alert, setAlert] = useState<{ message: string; type: 'warning' | 'info' } | null>(null);
-  const [groupBy, setGroupBy] = useState<'day' | 'month'>('month');
+  const [groupBy, setGroupBy] = useState<'day' | 'month'>('day');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('COP');
   const [converting, setConverting] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
-  // Verificar autenticación
+  // Verificar autenticación y obtener usuario
   useEffect(() => {
     fetchMe()
-      .then(() => setIsAuthenticated(true))
+      .then((u) => {
+        setIsAuthenticated(true);
+        setUser(u);
+      })
       .catch(() => setIsAuthenticated(false));
   }, []);
 
   useEffect(() => {
+    if (!user) return; // Esperar a que el usuario esté cargado
+    
     (async () => {
       try {
         setLoading(true);
-        const days = groupBy === 'day' ? 30 : 730;
-        const [chart, hist, goals, rems, wals] = await Promise.all([
+        
+        // Calcular días desde la fecha de registro del usuario
+        let days = 30; // Valor por defecto
+        if (user.createdAt) {
+          const registrationDate = new Date(user.createdAt);
+          const today = new Date();
+          const diffTime = Math.abs(today.getTime() - registrationDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          days = Math.max(diffDays, 1); // Mínimo 1 día
+        } else {
+          // Si no hay fecha de registro, usar valores por defecto según groupBy
+          days = groupBy === 'day' ? 30 : 730;
+        }
+        
+        const [chart, hist, goals, achieved, rems, wals] = await Promise.all([
           api<ChartDataPoint[]>(`/transactions/chart-data?days=${days}&groupBy=${groupBy}`).catch(() => []),
           api<Transaction[]>("/transactions/history?limit=500").catch(() => []),
           api<Goal[]>("/goals/user").catch(() => []),
+          api<Goal[]>("/goals/achieved").catch(() => []),
           api<PaymentReminder[]>("/reminders").catch(() => []),
           api<Wallet[]>("/wallets").catch(() => []),
         ]);
         setChartData(chart || []);
         setHistory(hist || []);
         setUserGoals(goals || []);
+        setAchievedGoals(achieved || []);
         setReminders(rems || []);
         setWallets(wals || []);
         if (wals && wals.length > 0 && !reminderWalletId) {
@@ -80,7 +124,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
-  }, [groupBy]);
+  }, [groupBy, user]);
 
   // Escuchar cambios en history para mostrar alertas
   useEffect(() => {
@@ -114,7 +158,7 @@ export default function Dashboard() {
         });
       } else {
         setAlert({
-          message: `💰 Te quedan ${fmt(remaining)} para cumplir tu meta de ahorro mensual.`,
+          message: `Te quedan ${fmt(remaining)} para cumplir tu meta de ahorro mensual.`,
           type: 'info'
         });
       }
@@ -267,71 +311,159 @@ export default function Dashboard() {
   }, [monthlyGoal, selectedCurrency, monthIncome, monthExpenses]);
 
   async function handleCreateSavingsGoal() {
+    if (!goalName.trim()) {
+      setSavingsError(t("dashboard.nameRequired"));
+      return;
+    }
+
     if (!savingsGoal.trim()) {
-      setSavingsError("El monto es requerido");
+      setSavingsError(t("dashboard.amountRequired"));
       return;
     }
 
     const amount = parseFloat(savingsGoal);
     if (isNaN(amount) || amount <= 0) {
-      setSavingsError("El monto debe ser un número mayor a 0");
+      setSavingsError(t("dashboard.amountMustBePositive"));
       return;
     }
 
     setSavingsError("");
     try {
-      const now = new Date();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
       await api("/goals", {
         method: "POST",
         body: JSON.stringify({
-          name: "Meta de ahorro mensual",
+          name: goalName.trim(),
+          description: goalDescription.trim() || undefined,
           targetAmount: amount,
-          deadline: lastDay.toISOString().split('T')[0],
+          deadline: goalDeadline || undefined,
         }),
       });
       setSavingsGoal("");
+      setGoalName("");
+      setGoalDescription("");
+      setGoalDeadline("");
       setShowSavingsModal(false);
       const goals = await api<Goal[]>("/goals/user");
       setUserGoals(goals || []);
+      const achieved = await api<Goal[]>("/goals/achieved").catch(() => []);
+      setAchievedGoals(achieved || []);
     } catch (e: any) {
-      setSavingsError(e.message || "Error al crear meta");
+      setSavingsError(e.message || t("dashboard.errorCreatingGoal"));
     }
   }
 
-  async function handleDeleteSavingsGoal() {
-    if (!monthlyGoal) return;
-    if (!confirm("¿Estás seguro de eliminar esta meta de ahorro?")) return;
-    
+  async function handleDeleteGoal(goalId: string) {
     try {
-      await api(`/goals/${monthlyGoal.id}`, { method: "DELETE" });
+      await api(`/goals/${goalId}`, { method: "DELETE" });
       const goals = await api<Goal[]>("/goals/user");
       setUserGoals(goals || []);
+      const achieved = await api<Goal[]>("/goals/achieved").catch(() => []);
+      setAchievedGoals(achieved || []);
+      setShowDeleteGoalConfirm(null);
     } catch (e: any) {
       console.error("Error deleting goal:", e);
+      setEditGoalError(e.message || t("dashboard.errorDeletingGoal"));
     }
   }
+
+  function handleEditGoal(goal: Goal) {
+    setShowEditGoalModal(goal.id);
+    setEditGoalName(goal.name);
+    setEditGoalDescription(goal.description || "");
+    setEditGoalDeadline(goal.deadline ? goal.deadline.split('T')[0] : "");
+    setEditGoalAmount(goal.targetAmount);
+    setEditGoalError("");
+  }
+
+  async function handleUpdateGoal() {
+    if (!showEditGoalModal) return;
+
+    if (!editGoalName.trim()) {
+      setEditGoalError(t("dashboard.nameRequired"));
+      return;
+    }
+
+    const amount = parseFloat(editGoalAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setEditGoalError(t("dashboard.amountMustBePositive"));
+      return;
+    }
+
+    setEditGoalError("");
+    try {
+      await api(`/goals/${showEditGoalModal}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editGoalName.trim(),
+          description: editGoalDescription.trim() || undefined,
+          targetAmount: amount,
+          deadline: editGoalDeadline || undefined,
+        }),
+      });
+      setShowEditGoalModal(null);
+      setEditGoalName("");
+      setEditGoalDescription("");
+      setEditGoalDeadline("");
+      setEditGoalAmount("");
+      const goals = await api<Goal[]>("/goals/user");
+      setUserGoals(goals || []);
+      const achieved = await api<Goal[]>("/goals/achieved").catch(() => []);
+      setAchievedGoals(achieved || []);
+    } catch (e: any) {
+      setEditGoalError(e.message || t("dashboard.errorUpdatingGoal"));
+    }
+  }
+
+  // Función para cargar metas cumplidas
+  const loadAchievedGoals = async () => {
+    try {
+      const achieved = await api<Goal[]>("/goals/achieved");
+      setAchievedGoals(achieved || []);
+    } catch (err) {
+      console.error("Error al cargar metas cumplidas:", err);
+      setAchievedGoals([]);
+    }
+  };
+
+  // Función para marcar meta como cumplida
+  const handleMarkAsAchieved = async (goalId: string, goalName: string) => {
+    try {
+      await api(`/goals/${goalId}/achieve`, {
+        method: "PATCH",
+      });
+      // Recargar metas pendientes
+      const updated = await api<Goal[]>("/goals/user");
+      setUserGoals(updated || []);
+      // Recargar metas cumplidas
+      await loadAchievedGoals();
+      
+      // Mostrar popup de felicitación
+      setAchievedGoalName(goalName);
+      setShowAchievementModal(true);
+    } catch (e: any) {
+      alert(e.message || t("dashboard.errorLoadingAchievedGoals"));
+    }
+  };
 
   async function handleCreateReminder() {
     if (!reminderName.trim()) {
-      setReminderError("El nombre es requerido");
+      setReminderError(t("dashboard.nameRequired"));
       return;
     }
     if (!reminderAmount.trim()) {
-      setReminderError("El monto es requerido");
+      setReminderError(t("dashboard.amountRequired"));
       return;
     }
     if (!reminderDueDate) {
-      setReminderError("La fecha de vencimiento es requerida");
+      setReminderError(t("dashboard.dateRequired"));
       return;
     }
     if (!reminderWalletId) {
-      setReminderError("Debes seleccionar una billetera");
+      setReminderError(t("dashboard.walletRequired"));
       return;
     }
     if (!reminderCategoryId) {
-      setReminderError("Debes seleccionar una categoría");
+      setReminderError(t("dashboard.categoryRequired"));
       return;
     }
 
@@ -372,7 +504,7 @@ export default function Dashboard() {
       const rems = await api<PaymentReminder[]>("/reminders");
       setReminders(rems || []);
     } catch (e: any) {
-      setReminderError(e.message || "Error al crear recordatorio");
+      setReminderError(e.message || t("dashboard.errorCreatingReminder"));
     }
   }
 
@@ -414,11 +546,11 @@ export default function Dashboard() {
   }
 
   async function handleDeleteReminder(reminderId: string) {
-    if (!confirm("¿Estás seguro de eliminar este recordatorio?")) return;
     try {
       await api(`/reminders/${reminderId}`, { method: "DELETE" });
       const rems = await api<PaymentReminder[]>("/reminders");
       setReminders(rems || []);
+      setShowDeleteReminderConfirm(null);
     } catch (e: any) {
       console.error("Error deleting reminder:", e);
     }
@@ -437,11 +569,11 @@ export default function Dashboard() {
     if (!editingReminderId) return;
 
     if (!reminderName.trim()) {
-      setReminderError("El nombre es requerido");
+      setReminderError(t("dashboard.nameRequired"));
       return;
     }
     if (!reminderDueDate) {
-      setReminderError("La fecha de vencimiento es requerida");
+      setReminderError(t("dashboard.dateRequired"));
       return;
     }
 
@@ -450,7 +582,7 @@ export default function Dashboard() {
     today.setHours(0, 0, 0, 0);
     
     if (dueDate < today) {
-      setReminderError("La fecha de vencimiento no puede ser anterior a la fecha actual");
+      setReminderError(t("dashboard.dateMustBeFuture"));
       return;
     }
 
@@ -472,7 +604,7 @@ export default function Dashboard() {
       const rems = await api<PaymentReminder[]>("/reminders");
       setReminders(rems || []);
     } catch (e: any) {
-      setReminderError(e.message || "Error al actualizar recordatorio");
+      setReminderError(e.message || t("dashboard.errorUpdatingReminder"));
     }
   }
 
@@ -488,13 +620,13 @@ export default function Dashboard() {
             </p>
           ))}
           {data && data.details.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#E8E2DE]">
-              <p className="text-xs font-medium text-warm-dark mb-2">Detalles:</p>
+            <div className="mt-3 pt-3 border-t border-[#FFB6C1]/30">
+              <p className="text-xs font-medium text-warm-dark mb-2">{t("dashboard.details")}:</p>
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {data.details.map((detail, idx) => (
                   <div key={idx} className="text-xs">
                     <span className={detail.type === "EXPENSE" ? "text-rose-600" : "text-emerald-600"}>
-                      {detail.type === "EXPENSE" ? "Gasto" : "Ingreso"}: {fmt(detail.amount)}
+                      {detail.type === "EXPENSE" ? t("dashboard.expense") : t("dashboard.income")}: {fmt(detail.amount)}
                     </span>
                     <span className="text-warm"> • {detail.category}</span>
                     {detail.description && (
@@ -517,13 +649,13 @@ export default function Dashboard() {
       {/* Encabezado + CTA */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">Dashboard</h1>
-          <p className="text-warm text-sm">Resumen rápido de tu economía</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1 font-financial-bold">{t("dashboard.title")}</h1>
+          <p className="text-warm text-sm font-financial">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           {/* Selector de divisa */}
           <div className="flex items-center gap-2 bg-[#FEFFFF]/50 rounded-lg border border-[#E8E2DE] px-3 py-2">
-            <label className="text-xs text-warm font-medium whitespace-nowrap">Divisa:</label>
+            <label className="text-xs text-warm font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
             <select
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
@@ -540,19 +672,19 @@ export default function Dashboard() {
             href="/wallets"
             className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
-            Mis billeteras
+            {t("dashboard.myWallets")}
           </Link>
           <Link
             href="/categories"
             className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
-            Mis categorías
+            {t("dashboard.myCategories")}
           </Link>
           <Link
             href="/transactions"
             className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
-            + Nueva transacción
+            + {t("dashboard.newTransaction")}
           </Link>
         </div>
       </div>
@@ -560,177 +692,395 @@ export default function Dashboard() {
       {/* Layout en dos columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Columna izquierda: Gráfico de gastos e ingresos */}
-        <div className="card-glass p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg font-semibold text-warm-dark">
-              Gastos e Ingresos
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setGroupBy('day')}
-                disabled={!isAuthenticated}
-                className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  groupBy === 'day'
-                    ? "btn-orange text-white"
-                    : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
-                } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                Por día
-              </button>
-              <button
-                onClick={() => setGroupBy('month')}
-                disabled={!isAuthenticated}
-                className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  groupBy === 'month'
-                    ? "btn-orange text-white"
-                    : "border border-[#E8E2DE] text-warm-dark hover:bg-[#E8E2DE]/50"
-                } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                Por mes
-              </button>
+        <div className="card-glass p-5 relative overflow-hidden">
+          {/* Fondo decorativo con gradientes suaves */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+            <div className="absolute top-0 left-0 w-full h-full opacity-30">
+              <div 
+                className="absolute top-0 left-0 w-full h-1/2"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 140, 148, 0.15) 0%, rgba(218, 112, 214, 0.15) 50%, rgba(147, 112, 219, 0.1) 100%)',
+                  clipPath: 'polygon(0 0, 100% 0, 100% 60%, 0 80%)',
+                }}
+              />
+              <div 
+                className="absolute bottom-0 left-0 w-full h-1/2"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(147, 112, 219, 0.1) 0%, rgba(218, 112, 214, 0.15) 50%, rgba(255, 140, 148, 0.15) 100%)',
+                  clipPath: 'polygon(0 20%, 100% 40%, 100% 100%, 0 100%)',
+                }}
+              />
             </div>
           </div>
-          {loading ? (
-            <div className="h-64 flex items-center justify-center text-warm text-sm">Cargando gráfico...</div>
-          ) : chartData.length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-warm text-sm">No hay datos aún.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E2DE" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatDate}
-                  stroke="#9F8B7D"
-                  style={{ fontSize: '11px' }}
-                  angle={0}
-                  textAnchor="middle"
-                  height={40}
-                />
-                <YAxis 
-                  stroke="#9F8B7D"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => fmt(value)}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="expenses" 
-                  name="Gastos"
-                  stroke="#EF4444" 
-                  strokeWidth={2}
-                  dot={{ fill: '#EF4444', r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="income" 
-                  name="Ingresos"
-                  stroke="#10B981" 
-                  strokeWidth={2}
-                  dot={{ fill: '#10B981', r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Columna derecha: Stats con meta de ahorro */}
-        <div className="space-y-4">
-          {/* Meta de ahorro mensual */}
-          {monthlyGoal && (
-            <div className="card-glass p-4 border-l-4 border-[#FE8625]">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display text-sm font-semibold text-warm-dark">Meta de ahorro mensual</h3>
+          
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">
+                {t("dashboard.financeDynamic")}
+              </h3>
+              <div className="flex gap-2">
                 <button
-                  onClick={handleDeleteSavingsGoal}
+                  onClick={() => setGroupBy('day')}
                   disabled={!isAuthenticated}
-                  className={`text-xs font-medium ${!isAuthenticated ? "opacity-50 cursor-not-allowed text-warm" : "text-rose-600 hover:text-rose-700"}`}
+                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+                    groupBy === 'day'
+                      ? "btn-orange text-white"
+                      : "border border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                  } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  ✕ Eliminar
+                  {t("dashboard.byDay")}
+                </button>
+                <button
+                  onClick={() => setGroupBy('month')}
+                  disabled={!isAuthenticated}
+                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+                    groupBy === 'month'
+                      ? "btn-orange text-white"
+                      : "border border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                  } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {t("dashboard.byMonth")}
                 </button>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-warm">Progreso</span>
-                  <span className="text-warm-dark font-medium">
-                    {fmt(savingsProgress!.remaining >= 0 ? savingsProgress!.remaining : 0)} restantes
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-[#E8E2DE] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      savingsProgress!.remaining < 0 ? "bg-rose-500" : "gradient-orange"
-                    }`}
-                    style={{ 
-                      width: `${Math.min(100, Math.max(0, ((monthIncome - monthExpenses) / savingsProgress!.target) * 100))}%` 
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-warm">
-                  Meta: {fmt(savingsProgress!.target)} • Actual: {fmt(monthIncome - monthExpenses)}
-                </div>
-              </div>
             </div>
-          )}
+            {loading ? (
+              <div className="h-64 flex items-center justify-center text-warm text-sm font-financial">{t("dashboard.loadingChart")}</div>
+            ) : chartData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-warm text-sm font-financial">{t("dashboard.noChartData")}</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={350}>
+                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    {/* Gradiente para gastos */}
+                    <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF8C94" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#C7366F" stopOpacity={0.3}/>
+                    </linearGradient>
+                    {/* Gradiente para ingresos */}
+                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#DA70D6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#9370DB" stopOpacity={0.3}/>
+                    </linearGradient>
+                    {/* Gradiente translúcido para efecto de profundidad - gastos */}
+                    <linearGradient id="colorExpensesShadow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF8C94" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#C7366F" stopOpacity={0.1}/>
+                    </linearGradient>
+                    {/* Gradiente translúcido para efecto de profundidad - ingresos */}
+                    <linearGradient id="colorIncomeShadow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#DA70D6" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#9370DB" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 182, 193, 0.2)" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    tickFormatter={formatDate}
+                    stroke="#8B6F7A"
+                    style={{ fontSize: '11px', fontFamily: 'var(--font-sans)', fontWeight: 500 }}
+                    angle={0}
+                    textAnchor="middle"
+                    height={40}
+                    tick={{ fill: '#8B6F7A' }}
+                  />
+                  <YAxis 
+                    stroke="#8B6F7A"
+                    style={{ fontSize: '12px', fontFamily: 'var(--font-sans)', fontWeight: 500 }}
+                    tickFormatter={(value) => fmt(value)}
+                    tick={{ fill: '#8B6F7A' }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  {/* Áreas con gradiente para efecto de profundidad (capa trasera) */}
+                  <Area
+                    type="monotone"
+                    dataKey="expenses"
+                    fill="url(#colorExpensesShadow)"
+                    stroke="none"
+                    strokeWidth={0}
+                    isAnimationActive={true}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="income"
+                    fill="url(#colorIncomeShadow)"
+                    stroke="none"
+                    strokeWidth={0}
+                    isAnimationActive={true}
+                  />
+                  {/* Áreas principales con gradiente */}
+                  <Area
+                    type="monotone"
+                    dataKey="expenses"
+                    name={t("dashboard.expenses")}
+                    fill="url(#colorExpenses)"
+                    stroke="#FF8C94"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#FF8C94', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#FF8C94', strokeWidth: 2 }}
+                    isAnimationActive={true}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="income"
+                    name={t("dashboard.income")}
+                    fill="url(#colorIncome)"
+                    stroke="#DA70D6"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#DA70D6', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#DA70D6', strokeWidth: 2 }}
+                    isAnimationActive={true}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
 
+        {/* Columna derecha: Stats */}
+        <div className="space-y-4">
           {/* KPIs / Stats */}
           <div className="grid grid-cols-1 gap-4">
             {converting ? (
               <div className="card-glass p-4 text-center text-warm text-sm">
-                Convirtiendo divisas...
+                {t("dashboard.convertingCurrencies")}
               </div>
             ) : (
               <>
                 <Stat
-                  title="Gasto del mes"
+                  title={t("dashboard.monthExpenses")}
                   value={fmt(monthExpenses)}
-                  hint="Total de gastos este mes"
+                  hint={t("dashboard.expensesHint")}
                 />
                 <Stat 
-                  title="Ingresos del mes" 
+                  title={t("dashboard.monthIncome")} 
                   value={fmt(monthIncome)} 
-                  hint="Total de ingresos este mes" 
+                  hint={t("dashboard.incomeHint")} 
                 />
                 <Stat 
-                  title="Saldo neto" 
+                  title={t("dashboard.netBalance")} 
                   value={fmt(netBalance)} 
-                  hint="Ingresos - Gastos"
+                  hint={t("dashboard.balanceHint")}
                   isNegative={netBalance < 0}
                 />
               </>
             )}
           </div>
 
-          {/* Botón para crear meta si no existe */}
-          {!monthlyGoal && (
-            <button
-              onClick={() => {
-                setSavingsGoal("");
-                setSavingsError("");
-                setShowSavingsModal(true);
-              }}
-              disabled={!isAuthenticated}
-              className={`w-full card-glass p-4 text-left transition ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:shadow-lg"}`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-display text-sm font-semibold text-warm-dark mb-1">Meta de ahorro mensual</h3>
-                  <p className="text-xs text-warm">Crea una meta para ahorrar este mes</p>
-                </div>
-                <span className="text-2xl">+</span>
-              </div>
-            </button>
-          )}
+          {/* Sección completa de metas personales */}
+          <div className="card-glass p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.savingsGoals")}</h3>
+              <button
+                onClick={() => {
+                  setSavingsGoal("");
+                  setGoalName("");
+                  setGoalDescription("");
+                  setGoalDeadline("");
+                  setSavingsError("");
+                  setShowSavingsModal(true);
+                }}
+                disabled={!isAuthenticated}
+                className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                + {t("dashboard.createGoal")}
+              </button>
+            </div>
+
+            {/* Tabs para pendientes y cumplidas */}
+            <div className="flex gap-2 border-b border-[#FFB6C1]/30 mb-4">
+              <button
+                onClick={() => setActiveGoalTab("pending")}
+                className={`px-4 py-2 text-sm font-medium transition ${
+                  activeGoalTab === "pending"
+                    ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
+                    : "text-warm hover:text-warm-dark"
+                }`}
+              >
+                {t("dashboard.pending")} ({userGoals.filter(g => g.status !== "ACHIEVED").length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveGoalTab("achieved");
+                  if (achievedGoals.length === 0) {
+                    loadAchievedGoals();
+                  }
+                }}
+                className={`px-4 py-2 text-sm font-medium transition ${
+                  activeGoalTab === "achieved"
+                    ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
+                    : "text-warm hover:text-warm-dark"
+                }`}
+              >
+                {t("dashboard.achieved")} ({achievedGoals.length})
+              </button>
+            </div>
+
+            {/* Metas pendientes */}
+            {activeGoalTab === "pending" && (
+              <>
+                {userGoals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
+                  <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center font-financial">
+                    {t("dashboard.noPendingGoals")}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userGoals.filter(g => g.status !== "ACHIEVED").map((goal) => {
+                      const current = Number(goal.currentAmount);
+                      const target = Number(goal.targetAmount);
+                      const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+                      const isAchieved = current >= target;
+                      const isExpanded = expandedGoal === goal.id;
+                      const progress = goalProgress[goal.id] || [];
+                      
+                      return (
+                        <div
+                          key={goal.id}
+                          className="rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/30 px-4 py-4"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-warm-dark text-base">{goal.name}</h3>
+                              </div>
+                              {goal.description && (
+                                <p className="text-sm text-warm mb-2">{goal.description}</p>
+                              )}
+                              <p className="text-sm text-warm">
+                                {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
+                              </p>
+                              {goal.deadline && (
+                                <p className="text-xs text-warm mt-0.5">
+                                  Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
+                                </p>
+                              )}
+                            </div>
+                            {goal.status === "PAUSED" && (
+                              <span className="rounded-full bg-amber-500 px-3 py-1 text-xs text-white font-medium">
+                                ⏸️ Pausada
+                              </span>
+                            )}
+                            {isAchieved && goal.status !== "CANCELLED" && (
+                              <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                                ✓ Lograda
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3">
+                            <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  isAchieved ? "bg-emerald-500" : "gradient-orange"
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-xs text-warm">
+                                {percentage.toFixed(1)}% completado
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={async () => {
+                                    setShowGoalDetailModal(goal.id);
+                                    try {
+                                      const prog = await api<any[]>(`/goals/progress/${goal.id}`);
+                                      setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
+                                    } catch {}
+                                  }}
+                                  className="text-xs text-warm hover:text-warm-dark font-medium rounded-lg border border-[#E8E2DE] px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
+                                >
+                                  {t("dashboard.viewDetails")}
+                                </button>
+                                <button
+                                  onClick={() => handleEditGoal(goal)}
+                                  className="btn-edit"
+                                >
+                                  {t("dashboard.editGoal")}
+                                </button>
+                                <button
+                                  onClick={() => setShowDeleteGoalConfirm(goal.id)}
+                                  className="btn-delete"
+                                >
+                                  {t("dashboard.deleteGoal")}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Botón para marcar como cumplida */}
+                          {isAchieved && goal.status !== "ACHIEVED" && goal.status !== "CANCELLED" && (
+                            <div className="mt-4 pt-4 border-t border-[#FFB6C1]/30">
+                              <button
+                                onClick={() => handleMarkAsAchieved(goal.id, goal.name)}
+                                className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+                              >
+                                🎉 {t("dashboard.markAsAchieved")}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Metas cumplidas */}
+            {activeGoalTab === "achieved" && (
+              <>
+                {achievedGoals.length === 0 ? (
+                  <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center font-financial">
+                    {t("dashboard.noAchievedGoals")}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {achievedGoals.map((goal) => {
+                      const current = Number(goal.currentAmount);
+                      const target = Number(goal.targetAmount);
+                      
+                      return (
+                        <div
+                          key={goal.id}
+                          className="rounded-lg border-2 border-emerald-500 bg-emerald-50/30 px-4 py-4"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-warm-dark text-base">
+                                  ✅ {goal.name}
+                                </h3>
+                                <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                                  Cumplida
+                                </span>
+                              </div>
+                              {goal.description && (
+                                <p className="text-sm text-warm mb-2">{goal.description}</p>
+                              )}
+                              <p className="text-sm text-warm">
+                                {t("dashboard.goalReached")}: {fmt(target, selectedCurrency)}
+                              </p>
+                              {goal.createdAt && (
+                                <p className="text-xs text-warm mt-1">
+                                  Cumplida: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Recordatorios de pago */}
       <div className="card-glass p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-warm-dark">Recordatorios de pago</h3>
+          <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.paymentReminders")}</h3>
           <button
             onClick={async () => {
               setReminderName("");
@@ -754,13 +1104,13 @@ export default function Dashboard() {
             disabled={!isAuthenticated}
             className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            + Nuevo recordatorio
+            + {t("dashboard.createReminder")}
           </button>
         </div>
         {loading ? (
-          <p className="text-warm text-sm">Cargando...</p>
+          <p className="text-warm text-sm">{t("common.loading")}</p>
         ) : reminders.filter(r => !r.isPaid).length === 0 ? (
-          <p className="text-warm text-sm">No tienes recordatorios pendientes.</p>
+          <p className="text-warm text-sm font-financial">{t("dashboard.noReminders")}</p>
         ) : (
           <div className="space-y-2">
             {reminders.filter(r => !r.isPaid).map((reminder) => {
@@ -786,7 +1136,7 @@ export default function Dashboard() {
                         checked={reminder.isPaid}
                         onChange={() => handleCheckboxChange(reminder.id)}
                         disabled={reminder.isPaid || !isAuthenticated}
-                        className="mt-1 w-4 h-4 rounded border-[#E8E2DE] text-[#FE8625] focus:ring-[#FE8625] focus:ring-2 disabled:opacity-50"
+                        className="mt-1 w-4 h-4 rounded border-[#FFB6C1]/40 text-[#FF8C94] focus:ring-[#FF8C94] focus:ring-2 disabled:opacity-50"
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-warm-dark">{reminder.name}</p>
@@ -795,14 +1145,14 @@ export default function Dashboard() {
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-xs text-warm">
-                            {reminder.wallet?.name || "Billetera"} • 
-                            Vence: {dueDate.toLocaleDateString('es-CO')}
+                            {reminder.wallet?.name || t("dashboard.wallet")} • 
+                            {t("dashboard.due")}: {dueDate.toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                           {isOverdue && (
-                            <span className="text-xs font-medium text-rose-600">⚠️ Vencido</span>
+                            <span className="text-xs font-medium text-rose-600">⚠️ {t("dashboard.overdue")}</span>
                           )}
                           {!isOverdue && daysUntilDue <= 3 && (
-                            <span className="text-xs font-medium text-amber-600">⚠️ Próximo a vencer</span>
+                            <span className="text-xs font-medium text-amber-600">⚠️ {t("dashboard.dueSoon")}</span>
                           )}
                         </div>
                       </div>
@@ -816,16 +1166,16 @@ export default function Dashboard() {
                       <button
                         onClick={() => handleEditReminder(reminder)}
                         disabled={!isAuthenticated}
-                        className={`text-xs font-medium ${!isAuthenticated ? "opacity-50 cursor-not-allowed text-warm" : "text-[#FE8625] hover:text-[#FF9A4D]"}`}
-                        title="Editar recordatorio"
+                        className={`btn-edit-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={t("dashboard.createReminder")}
                       >
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDeleteReminder(reminder.id)}
+                        onClick={() => setShowDeleteReminderConfirm(reminder.id)}
                         disabled={!isAuthenticated}
-                        className={`text-xs font-medium ${!isAuthenticated ? "opacity-50 cursor-not-allowed text-warm" : "text-rose-600 hover:text-rose-700"}`}
-                        title="Eliminar recordatorio"
+                        className={`btn-delete-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={t("dashboard.deleteReminderConfirm")}
                       >
                         ✕
                       </button>
@@ -841,31 +1191,31 @@ export default function Dashboard() {
       {/* Histórico de transacciones */}
       <div className="card-glass p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-warm-dark">Histórico reciente</h3>
+          <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.recentHistory")}</h3>
           <Link
             href="/transactions"
             className="text-sm text-warm hover:text-warm-dark font-medium"
           >
-            Ver todo →
+            {t("dashboard.viewAll")} →
           </Link>
         </div>
         {loading ? (
-          <p className="text-warm text-sm">Cargando...</p>
+          <p className="text-warm text-sm">{t("common.loading")}</p>
         ) : history.length === 0 ? (
-          <p className="text-warm text-sm">Aún no hay movimientos.</p>
+          <p className="text-warm text-sm font-financial">{t("dashboard.noMovements")}</p>
         ) : (
           <div className="space-y-2">
             {history.slice(0, 10).map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/30 px-3 py-2"
               >
                 <div className="flex-1">
                   <p className="text-sm font-medium text-warm-dark">
-                    {tx.description || tx.category?.name || "Sin descripción"}
+                    {tx.description || (tx.category ? translateCategory(tx.category, language).name : null) || t("dashboard.noDescription")}
                   </p>
                   <p className="text-xs text-warm">
-                    {tx.wallet?.name || "Billetera"} • {new Date(tx.date).toLocaleDateString('es-CO')}
+                    {tx.wallet?.name || t("dashboard.wallet")} • {new Date(tx.date).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                   </p>
                 </div>
                 <div className={`text-sm font-semibold ${
@@ -880,13 +1230,31 @@ export default function Dashboard() {
       </div>
 
       {/* Modal para crear meta de ahorro */}
-      {showSavingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Crear meta de ahorro mensual</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showSavingsModal}
+        onClose={() => {
+          setShowSavingsModal(false);
+          setSavingsGoal("");
+          setGoalName("");
+          setGoalDescription("");
+          setGoalDeadline("");
+          setSavingsError("");
+        }}
+        title={t("dashboard.createGoal")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo (COP)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalName")} *</label>
+                <input
+                  type="text"
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                  placeholder={t("dashboard.goalNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalAmount")} *</label>
                 <input
                   type="number"
                   value={savingsGoal}
@@ -894,7 +1262,26 @@ export default function Dashboard() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalDescription")}</label>
+                <textarea
+                  value={goalDescription}
+                  onChange={(e) => setGoalDescription(e.target.value)}
+                  placeholder={t("dashboard.goalDescriptionPlaceholder")}
+                  rows={3}
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalDeadline")}</label>
+                <input
+                  type="date"
+                  value={goalDeadline}
+                  onChange={(e) => setGoalDeadline(e.target.value)}
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               {savingsError && (
@@ -905,43 +1292,53 @@ export default function Dashboard() {
                   onClick={() => {
                     setShowSavingsModal(false);
                     setSavingsGoal("");
+                    setGoalName("");
+                    setGoalDescription("");
+                    setGoalDeadline("");
                     setSavingsError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleCreateSavingsGoal}
                   disabled={!isAuthenticated}
                   className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Crear meta
+                  {t("dashboard.createGoal")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para crear recordatorio */}
-      {showReminderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-4">Nuevo recordatorio de pago</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showReminderModal}
+        onClose={() => {
+          setShowReminderModal(false);
+          setReminderName("");
+          setReminderAmount("");
+          setReminderDescription("");
+          setReminderDueDate("");
+          setReminderCategoryId("");
+          setReminderError("");
+        }}
+        title={t("dashboard.createReminder")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre del recordatorio *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderName")} *</label>
                 <input
                   type="text"
                   value={reminderName}
                   onChange={(e) => setReminderName(e.target.value)}
-                  placeholder="Ej: Pago de arriendo"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("dashboard.reminderNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderAmount")} *</label>
                 <input
                   type="number"
                   value={reminderAmount}
@@ -949,17 +1346,17 @@ export default function Dashboard() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Billetera *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderWallet")} *</label>
                 <select
                   value={reminderWalletId}
                   onChange={(e) => setReminderWalletId(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 >
-                  <option value="">Selecciona una billetera</option>
+                  <option value="">{t("wallets.currency")}</option>
                   {wallets.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.name}
@@ -968,13 +1365,13 @@ export default function Dashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Categoría de gasto *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderCategory")} *</label>
                 <select
                   value={reminderCategoryId}
                   onChange={(e) => setReminderCategoryId(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 >
-                  <option value="">Selecciona una categoría</option>
+                  <option value="">{t("categories.title")}</option>
                   {expenseCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -983,23 +1380,23 @@ export default function Dashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha de vencimiento *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDueDate")} *</label>
                 <input
                   type="date"
                   value={reminderDueDate}
                   onChange={(e) => setReminderDueDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDescription")}</label>
                 <textarea
                   value={reminderDescription}
                   onChange={(e) => setReminderDescription(e.target.value)}
-                  placeholder="Notas adicionales sobre este pago..."
+                  placeholder={t("dashboard.reminderDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
                 />
               </div>
               {reminderError && (
@@ -1016,57 +1413,63 @@ export default function Dashboard() {
                     setReminderCategoryId("");
                     setReminderError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleCreateReminder}
                   disabled={!isAuthenticated}
                   className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Crear recordatorio
+                  {t("dashboard.createReminder")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal para editar recordatorio */}
-      {showEditReminderModal && editingReminderId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-4">Editar recordatorio</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showEditReminderModal && !!editingReminderId}
+        onClose={() => {
+          setShowEditReminderModal(false);
+          setReminderName("");
+          setReminderDescription("");
+          setReminderDueDate("");
+          setEditingReminderId(null);
+          setReminderError("");
+        }}
+        title={t("dashboard.createReminder")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre del recordatorio *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderName")} *</label>
                 <input
                   type="text"
                   value={reminderName}
                   onChange={(e) => setReminderName(e.target.value)}
-                  placeholder="Ej: Pago de arriendo"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  placeholder={t("dashboard.reminderNamePlaceholder")}
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha de vencimiento *</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDueDate")} *</label>
                 <input
                   type="date"
                   value={reminderDueDate}
                   onChange={(e) => setReminderDueDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDescription")}</label>
                 <textarea
                   value={reminderDescription}
                   onChange={(e) => setReminderDescription(e.target.value)}
-                  placeholder="Notas adicionales sobre este pago..."
+                  placeholder={t("dashboard.reminderDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
                 />
               </div>
               {reminderError && (
@@ -1082,38 +1485,40 @@ export default function Dashboard() {
                     setEditingReminderId(null);
                     setReminderError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleUpdateReminder}
                   disabled={!isAuthenticated}
                   className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Guardar cambios
+                  {t("common.save")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Diálogo de renovación */}
-      {showRenewDialog && reminderToMark && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-4">¿Renovar recordatorio?</h2>
-            <p className="text-sm text-warm-dark mb-4">
-              ¿Deseas renovar este recordatorio para el próximo mes con el mismo monto, nombre y descripción?
-            </p>
-            <div className="flex gap-2">
+      <Modal
+        isOpen={showRenewDialog && !!reminderToMark}
+        onClose={() => {
+          setShowRenewDialog(false);
+          setReminderToMark(null);
+        }}
+        title="¿Renovar recordatorio?"
+      >
+        <p className="text-sm text-warm-dark mb-4">
+          ¿Deseas renovar este recordatorio para el próximo mes con el mismo monto, nombre y descripción?
+        </p>
+        <div className="flex gap-2">
               <button
                 onClick={() => {
                   setShowRenewDialog(false);
                   setReminderToMark(null);
                 }}
-                className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
               >
                 Cancelar
               </button>
@@ -1124,7 +1529,7 @@ export default function Dashboard() {
                   }
                 }}
                 disabled={!isAuthenticated}
-                className={`flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark transition ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:bg-[#E8E2DE]/50"}`}
+                className={`flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark transition ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:bg-[#FFB6C1]/20"}`}
               >
                 No renovar
               </button>
@@ -1137,12 +1542,10 @@ export default function Dashboard() {
                 disabled={!isAuthenticated}
                 className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                Sí, renovar
+                {t("dashboard.renew")}
               </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Alerta en parte inferior derecha */}
       {alert && (
@@ -1152,6 +1555,267 @@ export default function Dashboard() {
           <p className="text-sm text-warm-dark">{alert.message}</p>
         </div>
       )}
+
+      {/* Modal de felicitación por meta cumplida */}
+      <Modal
+        isOpen={showAchievementModal}
+        onClose={() => {
+          setShowAchievementModal(false);
+          setAchievedGoalName("");
+        }}
+        title=""
+        maxWidth="md"
+      >
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Sparkle size={64} weight="duotone" className="text-[#DA70D6]" />
+          </div>
+          <h2 className="text-2xl font-bold text-warm-dark mb-2 font-financial-bold">
+            ¡Felicitaciones!
+          </h2>
+          <p className="text-lg text-warm mb-6">
+            Has alcanzado tu meta: <strong>{achievedGoalName}</strong>
+          </p>
+          <p className="text-sm text-warm mb-6">
+            ¡Sigue así! Cada meta cumplida es un paso más hacia tus objetivos financieros.
+          </p>
+          <button
+            onClick={() => {
+              setShowAchievementModal(false);
+              setAchievedGoalName("");
+            }}
+            className="btn-orange rounded-lg px-6 py-3 text-base font-medium text-white"
+          >
+            ¡Genial!
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para eliminar recordatorio */}
+      <Modal
+        isOpen={!!showDeleteReminderConfirm}
+        onClose={() => setShowDeleteReminderConfirm(null)}
+        title={t("dashboard.deleteReminderConfirm")}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-warm-dark font-financial">
+            {t("dashboard.deleteReminderMessage")}
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setShowDeleteReminderConfirm(null)}
+              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={() => {
+                if (showDeleteReminderConfirm) {
+                  handleDeleteReminder(showDeleteReminderConfirm);
+                }
+              }}
+              className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+            >
+              {t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para eliminar meta */}
+      <Modal
+        isOpen={!!showDeleteGoalConfirm}
+        onClose={() => setShowDeleteGoalConfirm(null)}
+        title={t("dashboard.deleteGoalConfirm")}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-warm-dark font-financial">
+            {t("dashboard.deleteGoalMessage")}
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setShowDeleteGoalConfirm(null)}
+              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={() => {
+                if (showDeleteGoalConfirm) {
+                  handleDeleteGoal(showDeleteGoalConfirm);
+                }
+              }}
+              className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+            >
+              {t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal para editar meta */}
+      <Modal
+        isOpen={!!showEditGoalModal}
+        onClose={() => {
+          setShowEditGoalModal(null);
+          setEditGoalName("");
+          setEditGoalDescription("");
+          setEditGoalDeadline("");
+          setEditGoalAmount("");
+          setEditGoalError("");
+        }}
+        title={t("dashboard.editGoal")}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalName")} *</label>
+            <input
+              type="text"
+              value={editGoalName}
+              onChange={(e) => setEditGoalName(e.target.value)}
+              placeholder="Ej: Meta de ahorro mensual"
+              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo (COP) *</label>
+            <input
+              type="number"
+              value={editGoalAmount}
+              onChange={(e) => setEditGoalAmount(e.target.value)}
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+            <textarea
+              value={editGoalDescription}
+              onChange={(e) => setEditGoalDescription(e.target.value)}
+              placeholder="Describe tu meta de ahorro..."
+              rows={3}
+              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+            <input
+              type="date"
+              value={editGoalDeadline}
+              onChange={(e) => setEditGoalDeadline(e.target.value)}
+              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+            />
+          </div>
+          {editGoalError && (
+            <p className="text-xs text-rose-600 font-medium">{editGoalError}</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => {
+                setShowEditGoalModal(null);
+                setEditGoalName("");
+                setEditGoalDescription("");
+                setEditGoalDeadline("");
+                setEditGoalAmount("");
+                setEditGoalError("");
+              }}
+              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleUpdateGoal}
+              disabled={!isAuthenticated}
+              className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              Guardar cambios
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de detalle de meta */}
+      {showGoalDetailModal && (() => {
+        const goal = userGoals.find(g => g.id === showGoalDetailModal);
+        if (!goal) return null;
+        
+        const current = Number(goal.currentAmount);
+        const target = Number(goal.targetAmount);
+        const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+        const progress = goalProgress[goal.id] || [];
+        
+        return (
+          <Modal
+            isOpen={!!showGoalDetailModal}
+            onClose={() => {
+              setShowGoalDetailModal(null);
+            }}
+            title={goal.name}
+            maxWidth="2xl"
+          >
+            <div className="space-y-4">
+              {/* Información de la meta */}
+              <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
+                <div className="mb-2">
+                  {goal.description && (
+                    <p className="text-sm text-warm mb-2">{goal.description}</p>
+                  )}
+                  <p className="text-sm text-warm-dark mb-2">
+                    Progreso: {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
+                  </p>
+                  {goal.deadline && (
+                    <p className="text-xs text-warm">
+                      Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
+                    </p>
+                  )}
+                </div>
+                <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      current >= target ? "bg-emerald-500" : "gradient-orange"
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                <p className="text-xs text-warm mt-1">
+                  {percentage.toFixed(1)}% completado
+                </p>
+              </div>
+
+              {/* Contribuciones */}
+              {progress.length > 0 && (
+                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
+                  <p className="text-xs font-medium text-warm-dark mb-2">Contribuciones:</p>
+                  <div className="space-y-2">
+                    {progress.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-warm-dark font-medium">
+                            {p.createdBy?.name || p.createdBy?.email || "Usuario"}
+                          </span>
+                          {p.note && (
+                            <span className="text-warm ml-2">• {p.note}</span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-emerald-600 font-medium">
+                            +{fmt(Number(p.amount), selectedCurrency)}
+                          </span>
+                          <p className="text-warm text-xs">
+                            {new Date(p.date).toLocaleDateString('es-CO')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

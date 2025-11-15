@@ -4,17 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api, AuthError } from "@/lib/api";
 import { fetchMe } from "@/utils/session";
 import type { Wallet, Category, CategoryType, Transaction } from "@/types";
+import Modal from "@/components/Modal";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translateCategory } from "@/utils/categoryTranslations";
 
-// Helpers
-const fmt = (n: number, currency: string) => {
-  const locale = 'es-CO';
-  return new Intl.NumberFormat(locale, { 
-    style: "currency", 
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-};
+// Helpers - esta función se actualizará para usar el idioma del contexto
 
 function toNum(x: string | number | null | undefined) {
   if (typeof x === "number") return x;
@@ -24,6 +18,7 @@ function toNum(x: string | number | null | undefined) {
 }
 
 export default function TransactionsPage() {
+  const { language, t } = useLanguage();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [cats, setCats]       = useState<Category[]>([]);
   const [type, setType]       = useState<CategoryType>("EXPENSE");
@@ -42,6 +37,16 @@ export default function TransactionsPage() {
   // Detectar si la billetera seleccionada es grupal
   const selectedWallet = wallets.find(w => w.id === walletId);
   const isGroupWallet = selectedWallet?.type === "GROUP";
+
+  // Helper para formatear moneda con el idioma correcto
+  const fmt = (n: number, currency: string) => {
+    return new Intl.NumberFormat(language === "es" ? "es-CO" : "en-US", { 
+      style: "currency", 
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  };
 
   // Verificar autenticación
   useEffect(() => {
@@ -127,22 +132,22 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">Transacciones</h1>
-        <p className="text-warm text-sm">Registra y gestiona tus movimientos financieros</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1 font-financial-bold">{t("transactions.title")}</h1>
+        <p className="text-warm text-sm font-financial">{t("transactions.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Registrar */}
         <section className="card-glass p-5">
-          <h2 className="mb-4 text-lg font-semibold text-warm-dark">Registrar</h2>
+          <h2 className="mb-4 text-lg font-semibold text-warm-dark font-financial-bold">{t("transactions.register")}</h2>
 
           <div className="grid gap-3">
             <div>
-              <label className="text-xs text-warm font-medium mb-1.5 block">Billetera</label>
+              <label className="text-xs text-warm font-medium mb-1.5 block">{t("transactions.wallet")}</label>
               <select
                 value={walletId}
                 onChange={(e)=>setWid(e.target.value)}
-                className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
               >
                 {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
@@ -150,11 +155,11 @@ export default function TransactionsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-warm font-medium mb-1.5 block">Tipo</label>
+                <label className="text-xs text-warm font-medium mb-1.5 block">{t("transactions.type")}</label>
                 {isGroupWallet ? (
                   <div className="mt-1">
                     <div className="rounded-lg bg-gradient-to-r from-[#FFD3A0]/30 to-[#FE8625]/20 border border-[#FE8625]/30 px-3 py-2 text-xs font-medium text-warm-dark">
-                      Aporte (solo permitido en billeteras grupales)
+                      {t("transactions.contribution")}
                     </div>
                     <input type="hidden" value="INCOME" />
                   </div>
@@ -162,17 +167,17 @@ export default function TransactionsPage() {
                   <select
                     value={type}
                     onChange={(e)=>setType(e.target.value as CategoryType)}
-                    className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                    className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                   >
-                    <option value="EXPENSE">Gasto</option>
-                    <option value="INCOME">Ingreso</option>
+                    <option value="EXPENSE">{t("transactions.expense")}</option>
+                    <option value="INCOME">{t("transactions.income")}</option>
                   </select>
                 )}
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-warm font-medium block">Categoría</label>
+                  <label className="text-xs text-warm font-medium block">{t("transactions.category")}</label>
                   <button
                     onClick={() => {
                       setNewCatName("");
@@ -183,31 +188,34 @@ export default function TransactionsPage() {
                     disabled={!isAuthenticated}
                     className={`text-xs font-medium ${!isAuthenticated ? "opacity-50 cursor-not-allowed text-warm" : "text-[#FE8625] hover:text-[#FE8625]/80"}`}
                   >
-                    + Añadir categoría
+                    + {t("transactions.addCategory")}
                   </button>
                 </div>
                 <select
                   value={catId}
                   onChange={(e)=>setCat(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 >
-                  {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {cats.map(c => {
+                    const translated = translateCategory(c, language);
+                    return <option key={c.id} value={c.id}>{translated.name}</option>;
+                  })}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-warm font-medium mb-1.5 block">Monto</label>
+              <label className="text-xs text-warm font-medium mb-1.5 block">{t("transactions.amount")}</label>
               <input
                 type="number" step="0.01" min="0"
                 value={amount}
                 onChange={(e)=>setAmt(e.target.value)}
-                className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
               />
             </div>
 
             <div>
-              <label className="text-xs text-warm font-medium mb-1.5 block">Descripción (opcional)</label>
+              <label className="text-xs text-warm font-medium mb-1.5 block">{t("transactions.description")} ({t("common.optional")})</label>
               <input
                 value={desc}
                 onChange={(e)=>setDesc(e.target.value)}
@@ -221,7 +229,7 @@ export default function TransactionsPage() {
               disabled={!ready || !isAuthenticated}
               className="mt-1 btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none disabled:cursor-not-allowed"
             >
-              Agregar transacción
+              {t("transactions.register")}
             </button>
 
             {!!err && <p className="text-xs text-rose-600 font-medium mt-2">{err}</p>}
@@ -230,18 +238,18 @@ export default function TransactionsPage() {
 
         {/* Actividad */}
         <section className="card-glass p-5">
-          <h2 className="mb-4 text-lg font-semibold text-warm-dark">Actividad</h2>
+          <h2 className="mb-4 text-lg font-semibold text-warm-dark">{t("transactions.activity")}</h2>
           <ul className="space-y-2">
             {feed.length === 0 && (
-              <li className="text-warm text-sm">No hay transacciones aún.</li>
+              <li className="text-warm text-sm">{t("transactions.noTransactions")}</li>
             )}
             {feed.map(tx => (
               <li key={tx.id}
-                  className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5">
+                  className="flex items-center justify-between rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/30 px-3 py-2.5">
                 <div className="text-xs">
-                  <p className="font-medium text-warm-dark">{tx.description || "(sin descripción)"}</p>
+                  <p className="font-medium text-warm-dark">{tx.description || `(${t("dashboard.noDescription")})`}</p>
                   <p className="text-warm mt-0.5">
-                    {tx.type === "EXPENSE" ? "Gasto" : tx.type === "INCOME" ? "Ingreso" : "Liquidación"} • {new Date(tx.date).toLocaleDateString()}
+                    {tx.type === "EXPENSE" ? t("transactions.expense") : tx.type === "INCOME" ? t("transactions.income") : "Liquidación"} • {new Date(tx.date).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                   </p>
                 </div>
                 <div className={`font-semibold text-sm ${tx.type==="EXPENSE"?"text-rose-600":"text-emerald-600"}`}>
@@ -254,13 +262,19 @@ export default function TransactionsPage() {
       </div>
 
       {/* Modal para añadir categoría */}
-      {showAddCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="card-glass p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h2 className="text-lg font-semibold text-warm-dark mb-2">Añadir categoría</h2>
-            <div className="space-y-3">
+      <Modal
+        isOpen={showAddCategoryModal}
+        onClose={() => {
+          setShowAddCategoryModal(false);
+          setNewCatName("");
+          setNewCatDesc("");
+          setNewCatError("");
+        }}
+        title={t("transactions.addCategoryModal")}
+      >
+        <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Tipo de categoría</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("transactions.type")}</label>
                 <select
                   value={type}
                   onChange={(e) => {
@@ -274,21 +288,21 @@ export default function TransactionsPage() {
                       } catch {}
                     })();
                   }}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
                 >
-                  <option value="EXPENSE">Gasto individual</option>
-                  <option value="INCOME">Ingreso {isGroupWallet ? "grupal" : "individual"}</option>
+                  <option value="EXPENSE">{t("transactions.expense")}</option>
+                  <option value="INCOME">{t("transactions.income")}</option>
                 </select>
                 <p className="text-xs text-warm mt-1">
                   {type === "EXPENSE" 
-                    ? "Para registrar gastos personales"
+                    ? t("transactions.forPersonalExpenses")
                     : isGroupWallet
-                      ? "Para aportes a billeteras grupales"
-                      : "Para ingresos personales"}
+                      ? t("transactions.forGroupContributions")
+                      : t("transactions.forPersonalIncome")}
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Nombre</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("categories.name")}</label>
                 <input
                   type="text"
                   value={newCatName}
@@ -298,7 +312,7 @@ export default function TransactionsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("transactions.categoryDescription")} ({t("common.optional")})</label>
                 <input
                   type="text"
                   value={newCatDesc}
@@ -318,14 +332,14 @@ export default function TransactionsPage() {
                     setNewCatDesc("");
                     setNewCatError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={async () => {
                     if (!newCatName.trim()) {
-                      setNewCatError("El nombre es requerido");
+                      setNewCatError(t("dashboard.nameRequired"));
                       return;
                     }
                     setNewCatError("");
@@ -348,19 +362,17 @@ export default function TransactionsPage() {
                         setCat(list[list.length - 1].id); // Seleccionar la nueva categoría
                       }
                     } catch (e: any) {
-                      setNewCatError(e.message || "Error al crear categoría");
+                      setNewCatError(e.message || t("categories.errorCreating"));
                     }
                   }}
                   disabled={!isAuthenticated}
                   className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Crear categoría
+                  {t("categories.createCategory")}
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -2,15 +2,22 @@
 @import "tailwindcss";
 
 @layer utilities {
-  /* Fondo inspirado en la imagen: forma rojo-naranja horizontal difuminada */
+  /* Fondo inspirado en la imagen: gradientes suaves peach/rosa/púrpura */
   .bg-app {
     min-height: 100vh;
-    background: #FFFFFF;
+    background: linear-gradient(
+      135deg,
+      #FFF5F0 0%,
+      #FFE8E0 25%,
+      #F5E1E8 50%,
+      #E8D5E8 75%,
+      #E0D0E8 100%
+    );
     position: relative;
     overflow-x: hidden;
   }
 
-  /* Forma rojo-naranja principal (horizontal, difuminada) */
+  /* Capa superior con gradiente peach/rosa suave */
   .bg-app::before {
     content: '';
     position: fixed;
@@ -19,51 +26,53 @@
     width: 100%;
     height: 100%;
     background: 
-      /* Gradiente horizontal rojo-naranja difuminado */
-      linear-gradient(
-        to right,
-        rgba(255, 87, 51, 0.35) 0%,
-        rgba(255, 87, 51, 0.28) 15%,
-        rgba(255, 87, 51, 0.20) 30%,
-        rgba(255, 87, 51, 0.12) 45%,
-        rgba(255, 87, 51, 0.06) 60%,
-        rgba(255, 87, 51, 0.02) 75%,
-        transparent 85%
+      radial-gradient(
+        ellipse at 20% 30%,
+        rgba(255, 218, 185, 0.6) 0%,
+        rgba(255, 192, 203, 0.4) 30%,
+        rgba(255, 182, 193, 0.2) 50%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse at 80% 70%,
+        rgba(221, 160, 221, 0.5) 0%,
+        rgba(186, 85, 211, 0.3) 30%,
+        rgba(147, 112, 219, 0.2) 50%,
+        transparent 70%
       );
-    filter: blur(60px);
+    filter: blur(80px);
     z-index: 0;
-    transform: rotate(0deg);
   }
 
+  /* Capa de profundidad con formas orgánicas */
   .bg-app::after {
     content: '';
     position: fixed;
-    top: 20%;
-    left: -10%;
-    width: 60%;
-    height: 60%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: 
       radial-gradient(
-        ellipse at left center,
-        rgba(255, 87, 51, 0.4) 0%,
-        rgba(255, 87, 51, 0.25) 30%,
-        rgba(255, 87, 51, 0.15) 50%,
-        rgba(255, 87, 51, 0.05) 70%,
-        transparent 85%
+        ellipse at 50% 50%,
+        rgba(255, 228, 225, 0.3) 0%,
+        rgba(255, 218, 185, 0.2) 25%,
+        rgba(221, 160, 221, 0.15) 50%,
+        transparent 75%
       );
-    filter: blur(70px);
+    filter: blur(100px);
     z-index: 0;
-    border-radius: 50%;
   }
 
-  /* Tarjetas con glassmorphism */
+  /* Tarjetas con glassmorphism mejorado para el nuevo fondo */
   .card-glass {
-    background: rgba(254, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(232, 226, 222, 0.5);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 218, 185, 0.3);
     border-radius: 1.25rem;
-    box-shadow: 0 8px 32px rgba(159, 139, 125, 0.08);
+    box-shadow: 0 8px 32px rgba(221, 160, 221, 0.12), 
+                0 2px 8px rgba(255, 192, 203, 0.08);
   }
 
   /* Tarjetas más oscuras para contraste */
@@ -73,35 +82,36 @@
     box-shadow: 0 8px 32px rgba(21, 21, 21, 0.15);
   }
 
-  /* Degradado naranja */
+  /* Degradado peach/rosa que combina con el fondo */
   .gradient-orange {
-    background: linear-gradient(135deg, #FE8625 0%, #FFD3A0 100%);
+    background: linear-gradient(135deg, #FFB6C1 0%, #FFA07A 50%, #DA70D6 100%);
   }
 
-  /* Botón naranja sólido con hover effect */
+  /* Botón principal con colores más oscuros para mejor contraste */
   .btn-orange {
-    background: #FE8625;
+    background: linear-gradient(135deg, #C7366F 0%, #B82E5F 100%);
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(254, 134, 37, 0.2);
+    box-shadow: 0 2px 8px rgba(199, 54, 111, 0.35);
+    color: white;
   }
 
   .btn-orange:hover {
-    transform: scale(0.95);
-    background: linear-gradient(135deg, #FFD700 0%, #FE8625 100%);
-    box-shadow: 0 4px 16px rgba(254, 134, 37, 0.4);
+    transform: scale(0.98);
+    background: linear-gradient(135deg, #B82E5F 0%, #9D2550 100%);
+    box-shadow: 0 4px 16px rgba(199, 54, 111, 0.45);
   }
 
   .btn-orange:active {
-    transform: scale(0.92);
+    transform: scale(0.96);
   }
 
-  /* Texto gris cálido */
+  /* Texto con colores que combinan con el fondo */
   .text-warm {
-    color: #9F8B7D;
+    color: #8B6F7A;
   }
 
   .text-warm-dark {
-    color: #242121;
+    color: #4A3A4A;
   }
 
   /* Animación para alertas */
@@ -118,5 +128,36 @@
 
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
+  }
+
+  /* Botones de acción estándar con colores que combinan */
+  .btn-edit {
+    @apply text-xs font-medium rounded-lg border border-[#FFB6C1]/40 px-3 py-1.5 text-[#D94680] hover:text-[#C7366F] hover:bg-[#FFB6C1]/20 transition;
+  }
+
+  .btn-delete {
+    @apply text-xs font-medium rounded-lg border border-[#F8A5C2]/40 px-3 py-1.5 text-[#C7366F] hover:text-[#B82E5F] hover:bg-[#F8A5C2]/20 transition;
+  }
+
+  /* Botones de acción pequeños (solo iconos) */
+  .btn-edit-icon {
+    @apply text-xs font-medium text-[#D94680] hover:text-[#C7366F] transition;
+  }
+
+  .btn-delete-icon {
+    @apply text-xs font-medium text-[#C7366F] hover:text-[#B82E5F] transition;
+  }
+
+  /* Tipografía mejorada para tema financiero */
+  .font-financial {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .font-financial-bold {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }

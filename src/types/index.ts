@@ -62,6 +62,7 @@ export type ChartDataPoint = {
 export type Goal = {
   id: string;
   name: string;
+  description?: string;
   targetAmount: string;
   currentAmount: string;
   deadline?: string;

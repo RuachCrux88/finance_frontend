@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
 import { fetchMe } from "@/utils/session";
 import type { User } from "@/types";
+import { Wallet, ChartLine, NotePencil, Target, Bell, Globe } from "phosphor-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Home() {
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,28 +22,18 @@ export default function Home() {
   const getGreeting = () => {
     if (!user) return null;
     
-    const hour = new Date().getHours();
-    let timeGreeting = "";
-    if (hour >= 6 && hour < 12) {
-      timeGreeting = "Buenos días";
-    } else if (hour >= 12 && hour < 20) {
-      timeGreeting = "Buenas tardes";
-      } else {
-      timeGreeting = "Buenas noches";
-    }
-
-    return `${timeGreeting}, ${user.name || user.email}!`;
+    return t("home.greeting", { name: user.name || user.email });
   };
 
   const getWelcomeMessage = () => {
     if (!user) return null;
-    return "¡Bienvenido de nuevo!";
+    return t("home.welcomeBack");
   };
 
   if (loading) {
       return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-warm text-sm">Cargando...</p>
+        <p className="text-warm text-sm">{t("common.loading")}</p>
         </div>
       );
     }
@@ -61,50 +54,50 @@ export default function Home() {
 
           {/* Información sobre funcionalidades */}
           <div className="w-full max-w-4xl mt-8">
-            <h2 className="text-2xl font-semibold text-warm-dark mb-6 text-center">
-              ¿Qué puedes hacer con Finance?
+            <h2 className="text-2xl font-semibold text-warm-dark mb-6 text-center font-financial-bold">
+              {t("home.whatCanYouDo")}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card-glass p-5">
-                <div className="text-3xl mb-3">💰</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Gestiona tus billeteras</h3>
-                <p className="text-sm text-warm">
-                  Crea y administra múltiples billeteras en diferentes divisas para organizar tus finanzas.
+                <Wallet size={32} weight="duotone" className="mb-3 text-[#FF8C94]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.wallets.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.wallets.description")}
                 </p>
               </div>
               <div className="card-glass p-5">
-                <div className="text-3xl mb-3">📊</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Dashboard completo</h3>
-                <p className="text-sm text-warm">
-                  Visualiza gráficos de ingresos y gastos, estadísticas mensuales y el estado de tus finanzas.
+                <ChartLine size={32} weight="duotone" className="mb-3 text-[#DA70D6]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.dashboard.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.dashboard.description")}
                 </p>
               </div>
               <div className="card-glass p-5">
-                <div className="text-3xl mb-3">📝</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Registra transacciones</h3>
-                <p className="text-sm text-warm">
-                  Lleva un control detallado de todos tus ingresos y gastos con categorías personalizadas.
+                <NotePencil size={32} weight="duotone" className="mb-3 text-[#FF8C94]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.transactions.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.transactions.description")}
                 </p>
               </div>
               <div className="card-glass p-5">
-                <div className="text-3xl mb-3">🎯</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Metas de ahorro</h3>
-                <p className="text-sm text-warm">
-                  Establece objetivos financieros y monitorea tu progreso hacia alcanzarlos.
+                <Target size={32} weight="duotone" className="mb-3 text-[#DA70D6]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.goals.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.goals.description")}
                 </p>
               </div>
       <div className="card-glass p-5">
-                <div className="text-3xl mb-3">🔔</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Recordatorios de pago</h3>
-                <p className="text-sm text-warm">
-                  Nunca olvides un pago importante con recordatorios automáticos de tus obligaciones.
+                <Bell size={32} weight="duotone" className="mb-3 text-[#FF8C94]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.reminders.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.reminders.description")}
                 </p>
                         </div>
               <div className="card-glass p-5">
-                <div className="text-3xl mb-3">🌍</div>
-                <h3 className="font-semibold text-warm-dark mb-2">Múltiples divisas</h3>
-                <p className="text-sm text-warm">
-                  Trabaja con diferentes monedas y convierte automáticamente entre ellas.
+                <Globe size={32} weight="duotone" className="mb-3 text-[#DA70D6]" />
+                <h3 className="font-semibold text-warm-dark mb-2 font-financial-bold">{t("home.features.currencies.title")}</h3>
+                <p className="text-sm text-warm font-financial">
+                  {t("home.features.currencies.description")}
                 </p>
                   </div>
                 </div>
@@ -115,23 +108,23 @@ export default function Home() {
           {/* Mensaje de bienvenida para usuarios no autenticados */}
           <div className="text-center space-y-4">
             <h1 className="font-display text-4xl sm:text-5xl font-semibold text-warm-dark mb-2">
-              Bienvenido a Finance
+              {t("home.welcomeTitle")}
             </h1>
-            <p className="text-lg text-warm mb-2">
-              Tu plataforma completa para gestionar tus finanzas personales
+            <p className="text-lg text-warm mb-2 font-financial">
+              {t("home.welcomeSubtitle")}
             </p>
-            <p className="text-sm text-warm mb-6">
-              Inicia sesión para comenzar a tomar el control de tu dinero
+            <p className="text-sm text-warm mb-6 font-financial">
+              {t("home.welcomeDescription")}
             </p>
       </div>
 
           {/* Formulario de login */}
           <div className="card-glass p-8 w-full max-w-md">
             <h2 className="text-2xl font-semibold text-warm-dark mb-4 text-center">
-              Iniciar sesión
+              {t("home.loginTitle")}
             </h2>
-            <p className="text-warm mb-6 text-center">
-              Usa tu cuenta de Google para ingresar.
+            <p className="text-warm mb-6 text-center font-financial">
+              {t("home.loginDescription")}
             </p>
             <div className="flex justify-center">
               <GoogleLoginButton />
@@ -141,49 +134,61 @@ export default function Home() {
           {/* Información sobre funcionalidades */}
           <div className="w-full max-w-5xl mt-12">
             <h2 className="text-3xl font-semibold text-warm-dark mb-8 text-center">
-              ¿Qué puedes hacer con Finance?
+              {t("home.whatCanYouDo")}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">💰</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Gestiona tus billeteras</h3>
+                <div className="flex justify-center mb-4">
+                  <Wallet size={40} weight="duotone" className="text-[#FF8C94]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.wallets.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Crea y administra múltiples billeteras en diferentes divisas. Organiza tus finanzas de manera eficiente y mantén un control total sobre tus cuentas.
+                  {t("home.features.wallets.description")}
                 </p>
               </div>
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">📊</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Dashboard completo</h3>
+                <div className="flex justify-center mb-4">
+                  <ChartLine size={40} weight="duotone" className="text-[#DA70D6]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.dashboard.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Visualiza gráficos interactivos de tus ingresos y gastos, estadísticas mensuales detalladas y un resumen completo del estado de tus finanzas.
+                  {t("home.features.dashboard.description")}
                 </p>
               </div>
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">📝</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Registra transacciones</h3>
+                <div className="flex justify-center mb-4">
+                  <NotePencil size={40} weight="duotone" className="text-[#FF8C94]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.transactions.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Lleva un control detallado de todos tus ingresos y gastos. Categoriza cada transacción para un mejor análisis financiero.
+                  {t("home.features.transactions.description")}
                 </p>
               </div>
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">🎯</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Metas de ahorro</h3>
+                <div className="flex justify-center mb-4">
+                  <Target size={40} weight="duotone" className="text-[#DA70D6]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.goals.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Establece objetivos financieros mensuales y anuales. Monitorea tu progreso en tiempo real y alcanza tus metas de ahorro.
+                  {t("home.features.goals.description")}
                 </p>
               </div>
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">🔔</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Recordatorios de pago</h3>
+                <div className="flex justify-center mb-4">
+                  <Bell size={40} weight="duotone" className="text-[#FF8C94]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.reminders.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Nunca olvides un pago importante. Configura recordatorios automáticos para tus facturas y obligaciones recurrentes.
+                  {t("home.features.reminders.description")}
                 </p>
               </div>
               <div className="card-glass p-6">
-                <div className="text-4xl mb-4 text-center">🌍</div>
-                <h3 className="font-semibold text-warm-dark mb-3 text-center">Múltiples divisas</h3>
+                <div className="flex justify-center mb-4">
+                  <Globe size={40} weight="duotone" className="text-[#DA70D6]" />
+                </div>
+                <h3 className="font-semibold text-warm-dark mb-3 text-center">{t("home.features.currencies.title")}</h3>
                 <p className="text-sm text-warm text-center">
-                  Trabaja con diferentes monedas simultáneamente. La aplicación convierte automáticamente entre divisas para facilitar tu gestión.
+                  {t("home.features.currencies.description")}
                 </p>
               </div>
             </div>
