@@ -441,7 +441,7 @@ export default function Dashboard() {
       setAchievedGoalName(goalName);
       setShowAchievementModal(true);
     } catch (e: any) {
-      alert(e.message || t("dashboard.errorLoadingAchievedGoals"));
+      window.alert(e.message || t("dashboard.errorLoadingAchievedGoals"));
     }
   };
 
