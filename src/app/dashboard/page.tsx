@@ -461,7 +461,7 @@ export default function Dashboard() {
       let balance = 0;
       for (const tx of transactions) {
         const amount = Number(tx.amount);
-        if (tx.paidByUserId === userId) {
+        if (tx.paidBy?.id === userId) {
           if (tx.type === "INCOME") {
             balance += amount;
           } else if (tx.type === "EXPENSE") {
