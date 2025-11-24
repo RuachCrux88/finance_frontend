@@ -89,7 +89,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="card-glass p-6 text-center">
-        <p className="text-rose-600">{error || t("settings.errorUserNotFound")}</p>
+        <p className="text-blue-300">{error || t("settings.errorUserNotFound")}</p>
       </div>
     );
   }
@@ -109,20 +109,20 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.name")}</label>
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
+                <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white cursor-default">
                   {user.name || t("settings.notSpecified")}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.email")}</label>
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
+                <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white cursor-default">
                   {user.email}
                 </div>
               </div>
               {user.createdAt && (
                 <div>
                   <label className="block text-sm font-medium text-warm-dark mb-1.5">{t("settings.registrationDate")}</label>
-                  <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark cursor-default">
+                  <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white cursor-default">
                     {new Date(user.createdAt).toLocaleDateString(language === "es" ? "es-CO" : "en-US", {
                       year: 'numeric',
                       month: 'long',
@@ -144,7 +144,7 @@ export default function SettingsPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition ${
                   language === "es"
                     ? "btn-orange text-white border-transparent"
-                    : "border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                    : "border-white/20 text-white hover:bg-white/10"
                 }`}
               >
                 <Globe size={20} weight={language === "es" ? "fill" : "regular"} />
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition ${
                   language === "en"
                     ? "btn-orange text-white border-transparent"
-                    : "border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                    : "border-white/20 text-white hover:bg-white/10"
                 }`}
               >
                 <Globe size={20} weight={language === "en" ? "fill" : "regular"} />
@@ -165,8 +165,8 @@ export default function SettingsPage() {
           </div>
 
           {/* Zona de peligro - Eliminar cuenta */}
-          <div className="card-glass p-6 border-2 border-rose-200">
-            <h2 className="text-lg font-semibold text-rose-600 mb-2">{t("settings.dangerZone")}</h2>
+          <div className="card-glass p-6 border-2 border-blue-200">
+            <h2 className="text-lg font-semibold text-blue-300 mb-2">{t("settings.dangerZone")}</h2>
             <p className="text-warm text-sm mb-4">
               {t("settings.dangerZoneDescription")}
             </p>
@@ -178,7 +178,7 @@ export default function SettingsPage() {
                   id="deleteConfirm"
                   checked={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.checked)}
-                  className="w-4 h-4 rounded border-[#E8E2DE] text-rose-600 focus:ring-rose-500"
+                  className="w-4 h-4 rounded border-white/20 text-blue-500 focus:ring-blue-500"
                 />
                 <label htmlFor="deleteConfirm" className="text-sm text-warm-dark">
                   {t("settings.deleteAccountConfirm")}
@@ -195,19 +195,19 @@ export default function SettingsPage() {
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder={deleteConfirmCode}
-                    className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500/50"
+                    className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50"
                   />
                 </div>
               )}
 
               {error && (
-                <p className="text-xs text-rose-600 font-medium">{error}</p>
+                <p className="text-xs text-blue-300 font-medium">{error}</p>
               )}
 
               <button
                 onClick={handleDeleteAccount}
                 disabled={!deleteConfirm || deleteConfirmText.trim() !== deleteConfirmCode || deleting}
-                className="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {deleting ? t("settings.deleting") : t("settings.deleteAccountButton")}
               </button>

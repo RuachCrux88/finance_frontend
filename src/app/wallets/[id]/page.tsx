@@ -897,7 +897,7 @@ export default function WalletDetailPage() {
                           });
                       }
                     }}
-                    className="rounded-lg border border-white/20 bg-white/10 px-4 py-4 cursor-pointer hover:bg-[#FEFFFF]/50 transition"
+                    className="rounded-lg border border-white/20 bg-white/10 px-4 py-4 cursor-pointer hover:bg-white/15 transition"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
@@ -1256,7 +1256,7 @@ export default function WalletDetailPage() {
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="ABCD1234"
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 font-mono"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 font-mono"
                   maxLength={8}
                 />
               </div>
@@ -1305,7 +1305,7 @@ export default function WalletDetailPage() {
                   value={goalName}
                   onChange={(e) => setGoalName(e.target.value)}
                   placeholder={t("walletDetail.goalNamePlaceholder")}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               <div>
@@ -1317,7 +1317,7 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               <div>
@@ -1327,7 +1327,7 @@ export default function WalletDetailPage() {
                   onChange={(e) => setGoalDescription(e.target.value)}
                   placeholder={t("walletDetail.goalDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 resize-none"
                 />
               </div>
               <div>
@@ -1336,7 +1336,7 @@ export default function WalletDetailPage() {
                   type="date"
                   value={goalDeadline}
                   onChange={(e) => setGoalDeadline(e.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               {goalError && (
@@ -1387,7 +1387,7 @@ export default function WalletDetailPage() {
                   value={editGoalName}
                   onChange={(e) => setEditGoalName(e.target.value)}
                   placeholder={t("walletDetail.goalNamePlaceholder")}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               <div>
@@ -1399,7 +1399,7 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               <div>
@@ -1409,7 +1409,7 @@ export default function WalletDetailPage() {
                   onChange={(e) => setEditGoalDescription(e.target.value)}
                   placeholder={t("walletDetail.goalDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 resize-none"
                 />
               </div>
               <div>
@@ -1418,7 +1418,7 @@ export default function WalletDetailPage() {
                   type="date"
                   value={editGoalDeadline}
                   onChange={(e) => setEditGoalDeadline(e.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               {editGoalError && (
@@ -1497,7 +1497,7 @@ export default function WalletDetailPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder={t("walletDetail.walletNamePlaceholder")}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               {nameError && (
@@ -1596,7 +1596,7 @@ export default function WalletDetailPage() {
                                 });
                               }}
                               placeholder="0.00"
-                              className="w-24 rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-2 py-1 text-xs text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                              className="w-24 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                             />
                           </div>
                         );
@@ -1641,7 +1641,7 @@ export default function WalletDetailPage() {
                   value={txAmount}
                   onChange={(e) => setTxAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               <div>
@@ -1651,7 +1651,7 @@ export default function WalletDetailPage() {
                   value={txDesc}
                   onChange={(e) => setTxDesc(e.target.value)}
                   placeholder={t("walletDetail.descriptionPlaceholder")}
-                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                 />
               </div>
               {txError && (
@@ -1728,7 +1728,7 @@ export default function WalletDetailPage() {
                         value={goalTransactionAmount}
                         onChange={(e) => setGoalTransactionAmount(e.target.value)}
                         placeholder={t("walletDetail.contributionAmountPlaceholder")}
-                        className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                       />
                     </div>
                     <div>
@@ -1738,7 +1738,7 @@ export default function WalletDetailPage() {
                         value={goalTransactionDesc}
                         onChange={(e) => setGoalTransactionDesc(e.target.value)}
                         placeholder={t("walletDetail.contributionAmountPlaceholder")}
-                        className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                       />
                     </div>
                     {goalTransactionError && (

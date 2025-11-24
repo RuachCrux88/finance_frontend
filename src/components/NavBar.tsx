@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
 import { fetchMe, doLogout } from "@/utils/session";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { List, X } from "phosphor-react";
 import { api } from "@/lib/api";
 
 export default function Navbar() {
@@ -77,14 +76,10 @@ export default function Navbar() {
       {/* Botón hamburguesa para móvil */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-lg bg-white/10 backdrop-blur-sm shadow-lg border border-white/20"
+        className="fixed top-4 left-4 z-[60] lg:hidden p-3 rounded-lg bg-white/10 backdrop-blur-sm shadow-lg border border-white/20 text-white font-semibold"
         aria-label="Toggle menu"
       >
-        {mobileMenuOpen ? (
-          <X size={24} className="text-warm-dark" />
-        ) : (
-          <List size={24} className="text-warm-dark" />
-        )}
+        {mobileMenuOpen ? "✕" : "☰"}
       </button>
 
       {/* Overlay para móvil */}
@@ -142,7 +137,7 @@ export default function Navbar() {
               href="https://drive.google.com/drive/folders/1fYgAQwcilhWWhJ4wDVInSbErAiw-H5Q9?usp=drive_link"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-warm hover:text-warm-dark hover:bg-white/60 transition-all duration-200"
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200"
             >
               <span className="text-sm">{t("navbar.mobile")}</span>
             </a>
@@ -150,10 +145,10 @@ export default function Navbar() {
         </ul>
 
         {/* Sección de usuario */}
-        <div className="border-t border-[#FFB6C1]/30 pt-4 mt-4">
+        <div className="border-t border-white/20 pt-4 mt-4">
           {loading ? (
             <div className="px-4 py-2">
-              <div className="h-4 bg-[#E8E2DE]/50 rounded animate-pulse" />
+              <div className="h-4 bg-white/20 rounded animate-pulse" />
             </div>
           ) : me ? (
             <>

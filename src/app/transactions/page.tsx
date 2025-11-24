@@ -525,7 +525,7 @@ export default function TransactionsPage() {
                 value={desc}
                 onChange={(e)=>setDesc(e.target.value)}
                 placeholder="Ej: Mercado, Netflix..."
-                className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
+                className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
               />
             </div>
 
@@ -637,7 +637,7 @@ export default function TransactionsPage() {
                     setNewCatDesc("");
                     setNewCatError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-white hover:bg-[#FFB6C1]/20 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
                 >
                   {t("common.cancel")}
                 </button>

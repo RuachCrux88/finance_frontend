@@ -352,7 +352,7 @@ export default function WalletsPage() {
                     const target = Number(goal.targetAmount);
                     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
                     return (
-                      <div key={goal.id} className="p-2 rounded-lg bg-[#FEFFFF]/30 border border-white/20">
+                      <div key={goal.id} className="p-2 rounded-lg bg-white/10 border border-white/20">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-white">{goal.name}</span>
                           <span className="text-xs text-white/80">{percentage.toFixed(0)}%</span>
@@ -500,7 +500,7 @@ export default function WalletsPage() {
         maxWidth="sm"
       >
         <div className="space-y-4">
-          <div className="rounded-lg border border-rose-200 bg-rose-50/30 px-4 py-3">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
               ⚠️ Esta acción no se puede deshacer
             </p>
@@ -510,7 +510,7 @@ export default function WalletsPage() {
           </div>
           
           {walletToDelete && (
-            <div className="rounded-lg border border-white/20 bg-[#FEFFFF]/30 px-4 py-3">
+            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
               <p className="text-xs text-white mb-1">
                 <strong>Billetera a eliminar:</strong>
               </p>
@@ -535,7 +535,7 @@ export default function WalletsPage() {
             </button>
             <button
               onClick={handleDelete}
-              className="flex-1 rounded-lg bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600 shadow-md shadow-rose-500/30 hover:shadow-lg hover:shadow-rose-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
             >
               🗑️ Eliminar billetera
             </button>

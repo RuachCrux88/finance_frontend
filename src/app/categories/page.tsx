@@ -279,13 +279,13 @@ export default function CategoriesPage() {
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                     />
                     <input
                       value={editDesc}
                       onChange={(e) => setEditDesc(e.target.value)}
                       placeholder={t("categories.description")}
-                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
                     />
                     <button
                       onClick={() => update(cat.id)}

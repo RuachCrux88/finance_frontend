@@ -1098,7 +1098,7 @@ export default function Dashboard() {
                             )}
                           </div>
                           <div className="mt-3">
-                            <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
+                            <div className="h-3 rounded-full bg-white/20 overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all ${
                                   isAchieved ? "bg-cyan-400" : "bg-gradient-to-r from-cyan-400 to-blue-500"
@@ -1119,7 +1119,7 @@ export default function Dashboard() {
                                       setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
                                     } catch {}
                                   }}
-                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
+                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/20 transition"
                                 >
                                   {t("dashboard.viewDetails")}
                                 </button>
@@ -1697,7 +1697,7 @@ export default function Dashboard() {
       {/* Alerta en parte inferior derecha */}
       {alert && (
         <div className={`fixed bottom-4 right-4 z-50 card-glass p-4 shadow-2xl max-w-sm animate-slide-up ${
-          alert.type === 'warning' ? 'border-l-4 border-rose-500' : 'border-l-4 border-emerald-500'
+          alert.type === 'warning' ? 'border-l-4 border-blue-500' : 'border-l-4 border-cyan-500'
         }`}>
           <p className="text-sm text-white">{alert.message}</p>
         </div>
@@ -1760,7 +1760,7 @@ export default function Dashboard() {
                   handleDeleteReminder(showDeleteReminderConfirm);
                 }
               }}
-              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
               {t("common.delete")}
             </button>
@@ -1791,7 +1791,7 @@ export default function Dashboard() {
                   handleDeleteGoal(showDeleteGoalConfirm);
                 }
               }}
-              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
               {t("common.delete")}
             </button>
@@ -1851,7 +1851,7 @@ export default function Dashboard() {
               type="date"
               value={editGoalDeadline}
               onChange={(e) => setEditGoalDeadline(e.target.value)}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50"
             />
           </div>
           {editGoalError && (
@@ -2017,10 +2017,10 @@ export default function Dashboard() {
                       setContributeError("");
                     }}
                     placeholder="0.00"
-                    className={`w-full rounded-lg border bg-[#FEFFFF] pl-16 pr-4 py-2 text-white focus:outline-none focus:ring-2 ${
+                    className={`w-full rounded-lg border bg-white/10 pl-16 pr-4 py-2 text-white focus:outline-none focus:ring-2 ${
                       exceedsBalance 
-                        ? "border-rose-500 focus:ring-rose-500" 
-                        : "border-white/20 focus:ring-orange-500"
+                        ? "border-blue-500 focus:ring-blue-500" 
+                        : "border-white/20 focus:ring-cyan-400"
                     }`}
                   />
                 </div>
@@ -2186,7 +2186,7 @@ function Stat({
 }) {
   if (isNegative) {
     return (
-      <div className="bg-rose-500 text-white rounded-lg p-5 shadow-lg transform scale-105">
+      <div className="bg-blue-500 text-white rounded-lg p-5 shadow-lg transform scale-105">
         <div className="text-xs font-medium mb-1.5 opacity-90">{title}</div>
         <div className="text-3xl font-semibold mb-1">{value}</div>
         {hint ? <div className="text-xs opacity-80">{hint}</div> : null}
