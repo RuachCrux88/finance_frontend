@@ -132,18 +132,18 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       {/* Encabezado */}
       <div>
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1">{t("categories.title")}</h1>
-        <p className="text-warm text-sm">{t("categories.subtitle")}</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1">{t("categories.title")}</h1>
+        <p className="text-white/80 text-sm">{t("categories.subtitle")}</p>
       </div>
 
       {/* Filtro por tipo */}
-      <div className="flex gap-3">
+      <div className="flex gap-2 sm:gap-3 flex-wrap">
         <button
           onClick={() => setType("EXPENSE")}
           className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
             type === "EXPENSE"
-              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
-              : "border border-[#DA70D6]/40 bg-white/60 text-warm-dark hover:bg-white/80 hover:border-[#DA70D6]/60 hover:shadow-md"
+              ? "btn-orange text-white shadow-lg shadow-cyan-500/30"
+              : "border border-cyan-300/40 bg-white/60 text-white hover:bg-white/80 hover:border-cyan-300/60 hover:shadow-md"
           }`}
         >
           {t("categories.expenses")}
@@ -152,8 +152,8 @@ export default function CategoriesPage() {
           onClick={() => setType("INCOME")}
           className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
             type === "INCOME"
-              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
-              : "border border-[#DA70D6]/40 bg-white/60 text-warm-dark hover:bg-white/80 hover:border-[#DA70D6]/60 hover:shadow-md"
+              ? "btn-orange text-white shadow-lg shadow-cyan-500/30"
+              : "border border-cyan-300/40 bg-white/60 text-white hover:bg-white/80 hover:border-cyan-300/60 hover:shadow-md"
           }`}
         >
           {t("categories.income")}
@@ -162,24 +162,24 @@ export default function CategoriesPage() {
 
       {/* Crear nueva categoría */}
       <div className="card-glass p-5">
-        <h2 className="text-lg font-semibold text-warm-dark mb-4">{t("categories.createCategory")}</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">{t("categories.createCategory")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <label className="text-xs text-warm font-medium mb-1.5 block">{t("categories.name")}</label>
+            <label className="text-xs text-white/80 font-medium mb-1.5 block">{t("categories.name")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Compras online"
-              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-300/50"
             />
           </div>
           <div>
-            <label className="text-xs text-warm font-medium mb-1.5 block">{t("categories.description")} ({t("common.optional")})</label>
+            <label className="text-xs text-white/80 font-medium mb-1.5 block">{t("categories.description")} ({t("common.optional")})</label>
             <input
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder={t("categories.briefDescription")}
-              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-300/50"
             />
           </div>
         </div>
@@ -190,36 +190,36 @@ export default function CategoriesPage() {
         >
           {t("categories.createCategory")}
         </button>
-        {!!err && <p className="mt-3 text-xs text-rose-600 font-medium">{err}</p>}
+        {!!err && <p className="mt-3 text-xs text-blue-300 font-medium">{err}</p>}
       </div>
 
       {/* Categorías del sistema */}
       {systemCategories.length > 0 && (
         <div className="card-glass p-5">
-          <h2 className="text-lg font-semibold text-warm-dark mb-4">
+          <h2 className="text-lg font-semibold text-white mb-4">
             {t("categories.predefinedCategories")} {type === "EXPENSE" ? `(${t("categories.expenses")})` : `(${t("categories.income")})`}
           </h2>
           {loading ? (
-            <p className="text-warm text-sm">{t("common.loading")}</p>
+            <p className="text-white/80 text-sm">{t("common.loading")}</p>
           ) : (
             <div className="space-y-2">
               {systemCategories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+                  className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2.5"
                 >
                   {editingId === cat.id ? (
                     <div className="flex-1 flex items-center gap-2">
                       <input
                         value={editName}
                         disabled
-                        className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark outline-none disabled:opacity-50"
+                        className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white outline-none disabled:opacity-50"
                       />
                       <input
                         value={editDesc}
                         onChange={(e) => setEditDesc(e.target.value)}
                         placeholder={t("categories.description")}
-                        className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                        className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-300/50"
                       />
                       <button
                         onClick={() => update(cat.id)}
@@ -229,7 +229,7 @@ export default function CategoriesPage() {
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50"
+                        className="rounded-lg border border-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-[#E8E2DE]/50"
                       >
                         {t("common.cancel")}
                       </button>
@@ -241,8 +241,8 @@ export default function CategoriesPage() {
                           const translated = translateCategory(cat, language);
                           return (
                             <>
-                              <p className="font-medium text-warm-dark text-sm">{translated.name}</p>
-                              <p className="text-xs text-warm mt-0.5">
+                              <p className="font-medium text-white text-sm">{translated.name}</p>
+                              <p className="text-xs text-white/80 mt-0.5">
                                 {translated.description || t("dashboard.noDescription")}
                               </p>
                             </>
@@ -251,7 +251,7 @@ export default function CategoriesPage() {
                       </div>
                       <button
                         onClick={() => startEdit(cat)}
-                        className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                        className="rounded-lg border border-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                       >
                         ✏️ {t("common.edit")}
                       </button>
@@ -267,25 +267,25 @@ export default function CategoriesPage() {
       {/* Categorías del usuario */}
       {userCategories.length > 0 && (
         <div className="card-glass p-5">
-          <h2 className="text-lg font-semibold text-warm-dark mb-4">{t("categories.userCategories")}</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">{t("categories.userCategories")}</h2>
           <div className="space-y-2">
             {userCategories.map((cat) => (
               <div
                 key={cat.id}
-                className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+                className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2.5"
               >
                 {editingId === cat.id ? (
                   <div className="flex-1 flex items-center gap-2">
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                     />
                     <input
                       value={editDesc}
                       onChange={(e) => setEditDesc(e.target.value)}
                       placeholder={t("categories.description")}
-                      className="flex-1 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-sm text-warm-dark placeholder:text-warm outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                      className="flex-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-white/80 outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                     />
                     <button
                       onClick={() => update(cat.id)}
@@ -295,7 +295,7 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="rounded-lg border border-[#E8E2DE] px-3 py-1 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50"
+                      className="rounded-lg border border-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-[#E8E2DE]/50"
                     >
                       {t("common.cancel")}
                     </button>
@@ -303,8 +303,8 @@ export default function CategoriesPage() {
                 ) : (
                   <>
                     <div className="flex-1">
-                      <p className="font-medium text-warm-dark text-sm">{cat.name}</p>
-                      <p className="text-xs text-warm mt-0.5">
+                      <p className="font-medium text-white text-sm">{cat.name}</p>
+                      <p className="text-xs text-white/80 mt-0.5">
                         {cat.description || t("dashboard.noDescription")}
                       </p>
                     </div>
@@ -333,7 +333,7 @@ export default function CategoriesPage() {
       {/* Mensaje cuando no hay categorías */}
       {!loading && list.length === 0 && (
         <div className="card-glass p-6 text-center">
-          <p className="text-warm text-sm">{t("categories.noCategories")}</p>
+          <p className="text-white/80 text-sm">{t("categories.noCategories")}</p>
         </div>
       )}
     </div>

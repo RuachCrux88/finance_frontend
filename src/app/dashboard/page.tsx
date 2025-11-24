@@ -8,7 +8,6 @@ import type { Transaction, ChartDataPoint, Goal, PaymentReminder, Wallet, Catego
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts';
 import { convertCurrency, CURRENCIES } from "@/utils/currency";
 import Modal from "@/components/Modal";
-import { Target, Sparkle } from "phosphor-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translateCategory } from "@/utils/categoryTranslations";
 
@@ -60,6 +59,22 @@ export default function Dashboard() {
   const [selectedCurrency, setSelectedCurrency] = useState<string>('COP');
   const [converting, setConverting] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
+  const [contributeAmount, setContributeAmount] = useState("");
+  const [contributeError, setContributeError] = useState("");
+  const [personalWallet, setPersonalWallet] = useState<Wallet | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [showSavingsBreakdownModal, setShowSavingsBreakdownModal] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Verificar autenticación y obtener usuario
   useEffect(() => {
@@ -108,6 +123,18 @@ export default function Dashboard() {
         if (wals && wals.length > 0 && !reminderWalletId) {
           const defaultWallet = wals.find(w => w.isDefault) || wals[0];
           setReminderWalletId(defaultWallet.id);
+        }
+        // Obtener billetera personal para aportes
+        if (wals && wals.length > 0) {
+          // Buscar primero por tipo PERSONAL, luego por isDefault, luego la primera disponible
+          const personal = wals.find(w => w.type === "PERSONAL" && (w.isDefault || !wals.find(w2 => w2.type === "PERSONAL" && w2.isDefault))) 
+            || wals.find(w => w.isDefault && w.type === "PERSONAL")
+            || wals.find(w => w.type === "PERSONAL")
+            || wals.find(w => w.isDefault)
+            || wals[0];
+          setPersonalWallet(personal);
+        } else {
+          setPersonalWallet(null);
         }
         setIsAuthenticated(true);
       } catch (e: any) {
@@ -425,6 +452,88 @@ export default function Dashboard() {
     }
   };
 
+  // Función para calcular el balance disponible de una billetera personal
+  async function calculateWalletBalance(walletId: string, userId: string): Promise<number> {
+    try {
+      const transactions = await api<Transaction[]>(`/transactions?walletId=${walletId}`);
+      if (!transactions || transactions.length === 0) return 0;
+
+      let balance = 0;
+      for (const tx of transactions) {
+        const amount = Number(tx.amount);
+        if (tx.paidByUserId === userId) {
+          if (tx.type === "INCOME") {
+            balance += amount;
+          } else if (tx.type === "EXPENSE") {
+            balance -= amount;
+          }
+        }
+      }
+      return balance;
+    } catch (e) {
+      console.error("Error calculating wallet balance:", e);
+      return 0;
+    }
+  }
+
+  // Función para hacer aporte a una meta personal
+  async function handleContributeToGoal(goalId: string, goalName: string) {
+    if (!contributeAmount.trim()) {
+      setContributeError("El monto es requerido");
+      return;
+    }
+
+    const amount = parseFloat(contributeAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setContributeError("El monto debe ser mayor a 0");
+      return;
+    }
+
+    if (!personalWallet) {
+      setContributeError("No se encontró billetera personal. Por favor, crea una billetera personal primero.");
+      return;
+    }
+
+    setContributeError("");
+    try {
+      const me = await fetchMe();
+      
+      // Calcular balance disponible antes de crear la transacción
+      const availableBalance = await calculateWalletBalance(personalWallet.id, me.id);
+      
+      if (amount > availableBalance) {
+        setContributeError(`No tienes suficiente dinero disponible. Balance disponible: ${fmt(availableBalance, personalWallet.currency || selectedCurrency)}`);
+        return;
+      }
+      
+      // Crear transacción EXPENSE con descripción "Aporte a meta: [nombre]"
+      await api("/transactions", {
+        method: "POST",
+        body: JSON.stringify({
+          walletId: personalWallet.id,
+          categoryId: null, // No requiere categoría
+          type: "EXPENSE",
+          amount: amount,
+          paidByUserId: me.id,
+          description: `Aporte a meta: ${goalName}`,
+        }),
+      });
+
+      // Cerrar modal y limpiar
+      setShowContributeModal(null);
+      setContributeAmount("");
+      setContributeError("");
+
+      // Recargar metas y transacciones
+      const goals = await api<Goal[]>("/goals/user");
+      setUserGoals(goals || []);
+      const hist = await api<Transaction[]>("/transactions/history?limit=500");
+      setHistory(hist || []);
+    } catch (e: any) {
+      setContributeError(e.message || "Error al hacer el aporte");
+    }
+  }
+
   // Función para marcar meta como cumplida
   const handleMarkAsAchieved = async (goalId: string, goalName: string) => {
     try {
@@ -613,26 +722,26 @@ export default function Dashboard() {
       const data = chartData.find(d => d.date === label);
       return (
         <div className="card-glass p-4 shadow-lg">
-          <p className="text-sm font-semibold text-warm-dark mb-2">{formatDate(label)}</p>
+          <p className="text-sm font-semibold text-white mb-2">{formatDate(label)}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-xs mb-1" style={{ color: entry.color }}>
               {entry.name}: {fmt(entry.value)}
             </p>
           ))}
           {data && data.details.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#FFB6C1]/30">
-              <p className="text-xs font-medium text-warm-dark mb-2">{t("dashboard.details")}:</p>
+            <div className="mt-3 pt-3 border-t border-white/20">
+              <p className="text-xs font-medium text-white mb-2">{t("dashboard.details")}:</p>
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {data.details.map((detail, idx) => (
                   <div key={idx} className="text-xs">
-                    <span className={detail.type === "EXPENSE" ? "text-rose-600" : "text-emerald-600"}>
+                    <span className={detail.type === "EXPENSE" ? "text-blue-300" : "text-cyan-300"}>
                       {detail.type === "EXPENSE" ? t("dashboard.expense") : t("dashboard.income")}: {fmt(detail.amount)}
                     </span>
-                    <span className="text-warm"> • {detail.category}</span>
+                    <span className="text-white/80"> • {detail.category}</span>
                     {detail.description && (
-                      <span className="text-warm"> • {detail.description}</span>
+                      <span className="text-white/80"> • {detail.description}</span>
                     )}
-                    <span className="text-warm"> • {detail.wallet}</span>
+                    <span className="text-white/80"> • {detail.wallet}</span>
                   </div>
                 ))}
               </div>
@@ -649,17 +758,17 @@ export default function Dashboard() {
       {/* Encabezado + CTA */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-warm-dark mb-1 font-financial-bold">{t("dashboard.title")}</h1>
-          <p className="text-warm text-sm font-financial">{t("dashboard.subtitle")}</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("dashboard.title")}</h1>
+          <p className="text-white/80 text-sm font-financial">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           {/* Selector de divisa */}
-          <div className="flex items-center gap-2 bg-[#FEFFFF]/50 rounded-lg border border-[#E8E2DE] px-3 py-2">
-            <label className="text-xs text-warm font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg border border-white/20 px-3 py-2">
+            <label className="text-xs text-white/80 font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
             <select
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
-              className="bg-transparent border-none outline-none text-xs font-medium text-warm-dark cursor-pointer focus:ring-0"
+              className="bg-transparent border-none outline-none text-xs font-medium text-white cursor-pointer focus:ring-0"
             >
               {CURRENCIES.map(curr => (
                 <option key={curr.code} value={curr.code}>
@@ -715,7 +824,7 @@ export default function Dashboard() {
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">
+              <h3 className="font-display text-lg font-semibold text-white font-financial-bold">
                 {t("dashboard.financeDynamic")}
               </h3>
               <div className="flex gap-2">
@@ -725,7 +834,7 @@ export default function Dashboard() {
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'day'
                       ? "btn-orange text-white"
-                      : "border border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                      : "border border-white/20 text-white hover:bg-white/10"
                   } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {t("dashboard.byDay")}
@@ -736,7 +845,7 @@ export default function Dashboard() {
                   className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'month'
                       ? "btn-orange text-white"
-                      : "border border-[#FFB6C1]/30 text-warm-dark hover:bg-[#FFB6C1]/20"
+                      : "border border-white/20 text-white hover:bg-white/10"
                   } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {t("dashboard.byMonth")}
@@ -744,31 +853,31 @@ export default function Dashboard() {
               </div>
             </div>
             {loading ? (
-              <div className="h-64 flex items-center justify-center text-warm text-sm font-financial">{t("dashboard.loadingChart")}</div>
+              <div className="h-64 flex items-center justify-center text-white/80 text-sm font-financial">{t("dashboard.loadingChart")}</div>
             ) : chartData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-warm text-sm font-financial">{t("dashboard.noChartData")}</div>
+              <div className="h-64 flex items-center justify-center text-white/80 text-sm font-financial">{t("dashboard.noChartData")}</div>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
+                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: isMobile ? -20 : 0, bottom: 0 }}>
                   <defs>
                     {/* Gradiente para gastos */}
                     <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF8C94" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#C7366F" stopOpacity={0.3}/>
+                      <stop offset="5%" stopColor="#42A5F5" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#26A69A" stopOpacity={0.3}/>
                     </linearGradient>
                     {/* Gradiente para ingresos */}
                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#DA70D6" stopOpacity={0.8}/>
+                      <stop offset="5%" stopColor="#4FC3F7" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#9370DB" stopOpacity={0.3}/>
                     </linearGradient>
                     {/* Gradiente translúcido para efecto de profundidad - gastos */}
                     <linearGradient id="colorExpensesShadow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF8C94" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#C7366F" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#42A5F5" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#26A69A" stopOpacity={0.1}/>
                     </linearGradient>
                     {/* Gradiente translúcido para efecto de profundidad - ingresos */}
                     <linearGradient id="colorIncomeShadow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#DA70D6" stopOpacity={0.2}/>
+                      <stop offset="5%" stopColor="#4FC3F7" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#9370DB" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
@@ -777,11 +886,12 @@ export default function Dashboard() {
                     dataKey="date" 
                     tickFormatter={formatDate}
                     stroke="#8B6F7A"
-                    style={{ fontSize: '11px', fontFamily: 'var(--font-sans)', fontWeight: 500 }}
-                    angle={0}
-                    textAnchor="middle"
-                    height={40}
+                    style={{ fontSize: isMobile ? '9px' : '11px', fontFamily: 'var(--font-sans)', fontWeight: 500 }}
+                    angle={isMobile ? -45 : 0}
+                    textAnchor={isMobile ? "end" : "middle"}
+                    height={isMobile ? 60 : 40}
                     tick={{ fill: '#8B6F7A' }}
+                    interval={isMobile ? "preserveStartEnd" : 0}
                   />
                   <YAxis 
                     stroke="#8B6F7A"
@@ -813,10 +923,10 @@ export default function Dashboard() {
                     dataKey="expenses"
                     name={t("dashboard.expenses")}
                     fill="url(#colorExpenses)"
-                    stroke="#FF8C94"
+                    stroke="#42A5F5"
                     strokeWidth={2.5}
-                    dot={{ fill: '#FF8C94', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: '#FF8C94', strokeWidth: 2 }}
+                    dot={{ fill: '#42A5F5', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#42A5F5', strokeWidth: 2 }}
                     isAnimationActive={true}
                   />
                   <Area
@@ -824,10 +934,10 @@ export default function Dashboard() {
                     dataKey="income"
                     name={t("dashboard.income")}
                     fill="url(#colorIncome)"
-                    stroke="#DA70D6"
+                    stroke="#4FC3F7"
                     strokeWidth={2.5}
-                    dot={{ fill: '#DA70D6', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: '#DA70D6', strokeWidth: 2 }}
+                    dot={{ fill: '#4FC3F7', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#4FC3F7', strokeWidth: 2 }}
                     isAnimationActive={true}
                   />
                 </ComposedChart>
@@ -841,7 +951,7 @@ export default function Dashboard() {
           {/* KPIs / Stats */}
           <div className="grid grid-cols-1 gap-4">
             {converting ? (
-              <div className="card-glass p-4 text-center text-warm text-sm">
+              <div className="card-glass p-4 text-center text-white/80 text-sm">
                 {t("dashboard.convertingCurrencies")}
               </div>
             ) : (
@@ -862,6 +972,28 @@ export default function Dashboard() {
                   hint={t("dashboard.balanceHint")}
                   isNegative={netBalance < 0}
                 />
+                <div
+                  onClick={() => setShowSavingsBreakdownModal(true)}
+                  className="card-glass p-5 cursor-pointer hover:bg-white/15 transition-all duration-200"
+                >
+                  <div className="text-xs font-medium mb-1.5 text-white/80">
+                    Dinero Ahorrado
+                  </div>
+                  <div className="text-3xl font-semibold mb-1 text-cyan-300">
+                    {(() => {
+                      let totalSavings = 0;
+                      const allGoals = [...userGoals, ...achievedGoals];
+                      for (const goal of allGoals) {
+                        const current = Number(goal.currentAmount);
+                        totalSavings += current;
+                      }
+                      return fmt(totalSavings);
+                    })()}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    Click para ver desglose
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -869,7 +1001,7 @@ export default function Dashboard() {
           {/* Sección completa de metas personales */}
           <div className="card-glass p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.savingsGoals")}</h3>
+              <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.savingsGoals")}</h3>
               <button
                 onClick={() => {
                   setSavingsGoal("");
@@ -887,13 +1019,13 @@ export default function Dashboard() {
             </div>
 
             {/* Tabs para pendientes y cumplidas */}
-            <div className="flex gap-2 border-b border-[#FFB6C1]/30 mb-4">
+            <div className="flex gap-2 border-b border-white/20 mb-4">
               <button
                 onClick={() => setActiveGoalTab("pending")}
                 className={`px-4 py-2 text-sm font-medium transition ${
                   activeGoalTab === "pending"
-                    ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
-                    : "text-warm hover:text-warm-dark"
+                    ? "text-[#4FC3F7] border-b-2 border-[#4FC3F7]"
+                    : "text-white/80 hover:text-white"
                 }`}
               >
                 {t("dashboard.pending")} ({userGoals.filter(g => g.status !== "ACHIEVED").length})
@@ -907,8 +1039,8 @@ export default function Dashboard() {
                 }}
                 className={`px-4 py-2 text-sm font-medium transition ${
                   activeGoalTab === "achieved"
-                    ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
-                    : "text-warm hover:text-warm-dark"
+                    ? "text-[#4FC3F7] border-b-2 border-[#4FC3F7]"
+                    : "text-white/80 hover:text-white"
                 }`}
               >
                 {t("dashboard.achieved")} ({achievedGoals.length})
@@ -919,7 +1051,7 @@ export default function Dashboard() {
             {activeGoalTab === "pending" && (
               <>
                 {userGoals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
-                  <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center font-financial">
+                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/80 text-sm text-center font-financial">
                     {t("dashboard.noPendingGoals")}
                   </div>
                 ) : (
@@ -935,21 +1067,21 @@ export default function Dashboard() {
                       return (
                         <div
                           key={goal.id}
-                          className="rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/30 px-4 py-4"
+                          className="rounded-lg border border-white/20 bg-white/10 px-4 py-4"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-warm-dark text-base">{goal.name}</h3>
+                                <h3 className="font-semibold text-white text-base">{goal.name}</h3>
                               </div>
                               {goal.description && (
-                                <p className="text-sm text-warm mb-2">{goal.description}</p>
+                                <p className="text-sm text-white/80 mb-2">{goal.description}</p>
                               )}
-                              <p className="text-sm text-warm">
+                              <p className="text-sm text-white/80">
                                 {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
                               </p>
                               {goal.deadline && (
-                                <p className="text-xs text-warm mt-0.5">
+                                <p className="text-xs text-white/80 mt-0.5">
                                   Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
                                 </p>
                               )}
@@ -960,7 +1092,7 @@ export default function Dashboard() {
                               </span>
                             )}
                             {isAchieved && goal.status !== "CANCELLED" && (
-                              <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                              <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium">
                                 ✓ Lograda
                               </span>
                             )}
@@ -969,13 +1101,13 @@ export default function Dashboard() {
                             <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all ${
-                                  isAchieved ? "bg-emerald-500" : "gradient-orange"
+                                  isAchieved ? "bg-cyan-400" : "bg-gradient-to-r from-cyan-400 to-blue-500"
                                 }`}
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
                             <div className="flex items-center justify-between mt-1.5">
-                              <p className="text-xs text-warm">
+                              <p className="text-xs text-white/80">
                                 {percentage.toFixed(1)}% completado
                               </p>
                               <div className="flex items-center gap-2">
@@ -987,7 +1119,7 @@ export default function Dashboard() {
                                       setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
                                     } catch {}
                                   }}
-                                  className="text-xs text-warm hover:text-warm-dark font-medium rounded-lg border border-[#E8E2DE] px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
+                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
                                 >
                                   {t("dashboard.viewDetails")}
                                 </button>
@@ -1006,9 +1138,24 @@ export default function Dashboard() {
                               </div>
                             </div>
                           </div>
+                          {/* Botón para aportar a la meta */}
+                          {goal.status !== "ACHIEVED" && goal.status !== "CANCELLED" && (
+                            <div className="mt-4 pt-4 border-t border-white/20">
+                              <button
+                                onClick={() => {
+                                  setShowContributeModal(goal.id);
+                                  setContributeAmount("");
+                                  setContributeError("");
+                                }}
+                                className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+                              >
+                                💰 Aportar a esta meta
+                              </button>
+                            </div>
+                          )}
                           {/* Botón para marcar como cumplida */}
                           {isAchieved && goal.status !== "ACHIEVED" && goal.status !== "CANCELLED" && (
-                            <div className="mt-4 pt-4 border-t border-[#FFB6C1]/30">
+                            <div className="mt-4 pt-4 border-t border-white/20">
                               <button
                                 onClick={() => handleMarkAsAchieved(goal.id, goal.name)}
                                 className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
@@ -1029,7 +1176,7 @@ export default function Dashboard() {
             {activeGoalTab === "achieved" && (
               <>
                 {achievedGoals.length === 0 ? (
-                  <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center font-financial">
+                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/80 text-sm text-center font-financial">
                     {t("dashboard.noAchievedGoals")}
                   </div>
                 ) : (
@@ -1041,26 +1188,26 @@ export default function Dashboard() {
                       return (
                         <div
                           key={goal.id}
-                          className="rounded-lg border-2 border-emerald-500 bg-emerald-50/30 px-4 py-4"
+                          className="rounded-lg border-2 border-cyan-400 bg-white/10 px-4 py-4"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-warm-dark text-base">
+                                <h3 className="font-semibold text-white text-base">
                                   ✅ {goal.name}
                                 </h3>
-                                <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
+                                <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium">
                                   Cumplida
                                 </span>
                               </div>
                               {goal.description && (
-                                <p className="text-sm text-warm mb-2">{goal.description}</p>
+                                <p className="text-sm text-white/80 mb-2">{goal.description}</p>
                               )}
-                              <p className="text-sm text-warm">
+                              <p className="text-sm text-white/80">
                                 {t("dashboard.goalReached")}: {fmt(target, selectedCurrency)}
                               </p>
                               {goal.createdAt && (
-                                <p className="text-xs text-warm mt-1">
+                                <p className="text-xs text-white/80 mt-1">
                                   Cumplida: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
                                 </p>
                               )}
@@ -1080,7 +1227,7 @@ export default function Dashboard() {
       {/* Recordatorios de pago */}
       <div className="card-glass p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.paymentReminders")}</h3>
+          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.paymentReminders")}</h3>
           <button
             onClick={async () => {
               setReminderName("");
@@ -1108,9 +1255,9 @@ export default function Dashboard() {
           </button>
         </div>
         {loading ? (
-          <p className="text-warm text-sm">{t("common.loading")}</p>
+          <p className="text-white/80 text-sm">{t("common.loading")}</p>
         ) : reminders.filter(r => !r.isPaid).length === 0 ? (
-          <p className="text-warm text-sm font-financial">{t("dashboard.noReminders")}</p>
+          <p className="text-white/80 text-sm font-financial">{t("dashboard.noReminders")}</p>
         ) : (
           <div className="space-y-2">
             {reminders.filter(r => !r.isPaid).map((reminder) => {
@@ -1123,10 +1270,10 @@ export default function Dashboard() {
                   key={reminder.id}
                   className={`rounded-lg border px-3 py-2 ${
                     isOverdue 
-                      ? "border-rose-500 bg-rose-50/30" 
+                      ? "border-blue-400 bg-white/10" 
                       : daysUntilDue <= 3 
-                        ? "border-amber-500 bg-amber-50/30"
-                        : "border-[#E8E2DE] bg-[#FEFFFF]/30"
+                        ? "border-cyan-400 bg-white/10"
+                        : "border-white/20 bg-white/10"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1136,20 +1283,20 @@ export default function Dashboard() {
                         checked={reminder.isPaid}
                         onChange={() => handleCheckboxChange(reminder.id)}
                         disabled={reminder.isPaid || !isAuthenticated}
-                        className="mt-1 w-4 h-4 rounded border-[#FFB6C1]/40 text-[#FF8C94] focus:ring-[#FF8C94] focus:ring-2 disabled:opacity-50"
+                        className="mt-1 w-4 h-4 rounded border-white/20 text-[#42A5F5] focus:ring-[#42A5F5] focus:ring-2 disabled:opacity-50"
                       />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-warm-dark">{reminder.name}</p>
+                        <p className="text-sm font-medium text-white">{reminder.name}</p>
                         {reminder.description && (
-                          <p className="text-xs text-warm mt-0.5">{reminder.description}</p>
+                          <p className="text-xs text-white/80 mt-0.5">{reminder.description}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-warm">
+                          <p className="text-xs text-white/80">
                             {reminder.wallet?.name || t("dashboard.wallet")} • 
                             {t("dashboard.due")}: {dueDate.toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                           {isOverdue && (
-                            <span className="text-xs font-medium text-rose-600">⚠️ {t("dashboard.overdue")}</span>
+                            <span className="text-xs font-medium text-blue-300">⚠️ {t("dashboard.overdue")}</span>
                           )}
                           {!isOverdue && daysUntilDue <= 3 && (
                             <span className="text-xs font-medium text-amber-600">⚠️ {t("dashboard.dueSoon")}</span>
@@ -1159,7 +1306,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-warm-dark">
+                        <p className="text-sm font-semibold text-white">
                           {fmt(Number(reminder.amount), reminder.wallet?.currency || "COP")}
                         </p>
                       </div>
@@ -1191,35 +1338,35 @@ export default function Dashboard() {
       {/* Histórico de transacciones */}
       <div className="card-glass p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-warm-dark font-financial-bold">{t("dashboard.recentHistory")}</h3>
+          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.recentHistory")}</h3>
           <Link
             href="/transactions"
-            className="text-sm text-warm hover:text-warm-dark font-medium"
+            className="text-sm text-white/80 hover:text-white font-medium"
           >
             {t("dashboard.viewAll")} →
           </Link>
         </div>
         {loading ? (
-          <p className="text-warm text-sm">{t("common.loading")}</p>
+          <p className="text-white/80 text-sm">{t("common.loading")}</p>
         ) : history.length === 0 ? (
-          <p className="text-warm text-sm font-financial">{t("dashboard.noMovements")}</p>
+          <p className="text-white/80 text-sm font-financial">{t("dashboard.noMovements")}</p>
         ) : (
           <div className="space-y-2">
             {history.slice(0, 10).map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/30 px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-warm-dark">
+                  <p className="text-sm font-medium text-white">
                     {tx.description || (tx.category ? translateCategory(tx.category, language).name : null) || t("dashboard.noDescription")}
                   </p>
-                  <p className="text-xs text-warm">
+                  <p className="text-xs text-white/80">
                     {tx.wallet?.name || t("dashboard.wallet")} • {new Date(tx.date).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                   </p>
                 </div>
                 <div className={`text-sm font-semibold ${
-                  tx.type === "EXPENSE" ? "text-rose-600" : "text-emerald-600"
+                  tx.type === "EXPENSE" ? "text-blue-300" : "text-cyan-300"
                 }`}>
                   {tx.type === "EXPENSE" ? "-" : "+"}{fmt(Number(tx.amount))}
                 </div>
@@ -1244,17 +1391,17 @@ export default function Dashboard() {
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalName")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.goalName")} *</label>
                 <input
                   type="text"
                   value={goalName}
                   onChange={(e) => setGoalName(e.target.value)}
                   placeholder={t("dashboard.goalNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalAmount")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.goalAmount")} *</label>
                 <input
                   type="number"
                   value={savingsGoal}
@@ -1262,30 +1409,30 @@ export default function Dashboard() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalDescription")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.goalDescription")}</label>
                 <textarea
                   value={goalDescription}
                   onChange={(e) => setGoalDescription(e.target.value)}
                   placeholder={t("dashboard.goalDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalDeadline")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.goalDeadline")}</label>
                 <input
                   type="date"
                   value={goalDeadline}
                   onChange={(e) => setGoalDeadline(e.target.value)}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               {savingsError && (
-                <p className="text-xs text-rose-600 font-medium">{savingsError}</p>
+                <p className="text-xs text-blue-300 font-medium">{savingsError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1297,7 +1444,7 @@ export default function Dashboard() {
                     setGoalDeadline("");
                     setSavingsError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1328,17 +1475,17 @@ export default function Dashboard() {
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderName")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderName")} *</label>
                 <input
                   type="text"
                   value={reminderName}
                   onChange={(e) => setReminderName(e.target.value)}
                   placeholder={t("dashboard.reminderNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderAmount")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderAmount")} *</label>
                 <input
                   type="number"
                   value={reminderAmount}
@@ -1346,15 +1493,15 @@ export default function Dashboard() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderWallet")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderWallet")} *</label>
                 <select
                   value={reminderWalletId}
                   onChange={(e) => setReminderWalletId(e.target.value)}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 >
                   <option value="">{t("wallets.currency")}</option>
                   {wallets.map((w) => (
@@ -1365,11 +1512,11 @@ export default function Dashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderCategory")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderCategory")} *</label>
                 <select
                   value={reminderCategoryId}
                   onChange={(e) => setReminderCategoryId(e.target.value)}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 >
                   <option value="">{t("categories.title")}</option>
                   {expenseCategories.map((c) => (
@@ -1380,27 +1527,27 @@ export default function Dashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDueDate")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderDueDate")} *</label>
                 <input
                   type="date"
                   value={reminderDueDate}
                   onChange={(e) => setReminderDueDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDescription")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderDescription")}</label>
                 <textarea
                   value={reminderDescription}
                   onChange={(e) => setReminderDescription(e.target.value)}
                   placeholder={t("dashboard.reminderDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50 resize-none"
                 />
               </div>
               {reminderError && (
-                <p className="text-xs text-rose-600 font-medium">{reminderError}</p>
+                <p className="text-xs text-blue-300 font-medium">{reminderError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1413,7 +1560,7 @@ export default function Dashboard() {
                     setReminderCategoryId("");
                     setReminderError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1443,37 +1590,37 @@ export default function Dashboard() {
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderName")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderName")} *</label>
                 <input
                   type="text"
                   value={reminderName}
                   onChange={(e) => setReminderName(e.target.value)}
                   placeholder={t("dashboard.reminderNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDueDate")} *</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderDueDate")} *</label>
                 <input
                   type="date"
                   value={reminderDueDate}
                   onChange={(e) => setReminderDueDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.reminderDescription")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.reminderDescription")}</label>
                 <textarea
                   value={reminderDescription}
                   onChange={(e) => setReminderDescription(e.target.value)}
                   placeholder={t("dashboard.reminderDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50 resize-none"
                 />
               </div>
               {reminderError && (
-                <p className="text-xs text-rose-600 font-medium">{reminderError}</p>
+                <p className="text-xs text-blue-300 font-medium">{reminderError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1485,7 +1632,7 @@ export default function Dashboard() {
                     setEditingReminderId(null);
                     setReminderError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1509,7 +1656,7 @@ export default function Dashboard() {
         }}
         title="¿Renovar recordatorio?"
       >
-        <p className="text-sm text-warm-dark mb-4">
+        <p className="text-sm text-white mb-4">
           ¿Deseas renovar este recordatorio para el próximo mes con el mismo monto, nombre y descripción?
         </p>
         <div className="flex gap-2">
@@ -1518,7 +1665,7 @@ export default function Dashboard() {
                   setShowRenewDialog(false);
                   setReminderToMark(null);
                 }}
-                className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+                className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
               >
                 Cancelar
               </button>
@@ -1529,7 +1676,7 @@ export default function Dashboard() {
                   }
                 }}
                 disabled={!isAuthenticated}
-                className={`flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark transition ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:bg-[#FFB6C1]/20"}`}
+                className={`flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white transition ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10"}`}
               >
                 No renovar
               </button>
@@ -1552,7 +1699,7 @@ export default function Dashboard() {
         <div className={`fixed bottom-4 right-4 z-50 card-glass p-4 shadow-2xl max-w-sm animate-slide-up ${
           alert.type === 'warning' ? 'border-l-4 border-rose-500' : 'border-l-4 border-emerald-500'
         }`}>
-          <p className="text-sm text-warm-dark">{alert.message}</p>
+          <p className="text-sm text-white">{alert.message}</p>
         </div>
       )}
 
@@ -1568,15 +1715,14 @@ export default function Dashboard() {
       >
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <Sparkle size={64} weight="duotone" className="text-[#DA70D6]" />
           </div>
-          <h2 className="text-2xl font-bold text-warm-dark mb-2 font-financial-bold">
+          <h2 className="text-2xl font-bold text-white mb-2 font-financial-bold">
             ¡Felicitaciones!
           </h2>
-          <p className="text-lg text-warm mb-6">
+          <p className="text-lg text-white/80 mb-6">
             Has alcanzado tu meta: <strong>{achievedGoalName}</strong>
           </p>
-          <p className="text-sm text-warm mb-6">
+          <p className="text-sm text-white/80 mb-6">
             ¡Sigue así! Cada meta cumplida es un paso más hacia tus objetivos financieros.
           </p>
           <button
@@ -1598,13 +1744,13 @@ export default function Dashboard() {
         title={t("dashboard.deleteReminderConfirm")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-warm-dark font-financial">
+          <p className="text-sm text-white font-financial">
             {t("dashboard.deleteReminderMessage")}
           </p>
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setShowDeleteReminderConfirm(null)}
-              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+              className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
             >
               {t("common.cancel")}
             </button>
@@ -1614,7 +1760,7 @@ export default function Dashboard() {
                   handleDeleteReminder(showDeleteReminderConfirm);
                 }
               }}
-              className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
             >
               {t("common.delete")}
             </button>
@@ -1629,13 +1775,13 @@ export default function Dashboard() {
         title={t("dashboard.deleteGoalConfirm")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-warm-dark font-financial">
+          <p className="text-sm text-white font-financial">
             {t("dashboard.deleteGoalMessage")}
           </p>
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setShowDeleteGoalConfirm(null)}
-              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+              className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
             >
               {t("common.cancel")}
             </button>
@@ -1645,7 +1791,7 @@ export default function Dashboard() {
                   handleDeleteGoal(showDeleteGoalConfirm);
                 }
               }}
-              className="flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+              className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
             >
               {t("common.delete")}
             </button>
@@ -1668,17 +1814,17 @@ export default function Dashboard() {
       >
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("dashboard.goalName")} *</label>
+            <label className="block text-xs font-medium text-white mb-1.5">{t("dashboard.goalName")} *</label>
             <input
               type="text"
               value={editGoalName}
               onChange={(e) => setEditGoalName(e.target.value)}
               placeholder="Ej: Meta de ahorro mensual"
-              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo (COP) *</label>
+            <label className="block text-xs font-medium text-white mb-1.5">Monto objetivo (COP) *</label>
             <input
               type="number"
               value={editGoalAmount}
@@ -1686,30 +1832,30 @@ export default function Dashboard() {
               placeholder="0.00"
               min="0.01"
               step="0.01"
-              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-warm-dark mb-1.5">Descripción (opcional)</label>
+            <label className="block text-xs font-medium text-white mb-1.5">Descripción (opcional)</label>
             <textarea
               value={editGoalDescription}
               onChange={(e) => setEditGoalDescription(e.target.value)}
               placeholder="Describe tu meta de ahorro..."
               rows={3}
-              className="w-full rounded-lg border border-[#FFB6C1]/30 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FF8C94]/30 focus:border-[#FF8C94]/50 resize-none"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-[#42A5F5]/30 focus:border-[#42A5F5]/50 resize-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+            <label className="block text-xs font-medium text-white mb-1.5">Fecha límite (opcional)</label>
             <input
               type="date"
               value={editGoalDeadline}
               onChange={(e) => setEditGoalDeadline(e.target.value)}
-              className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
             />
           </div>
           {editGoalError && (
-            <p className="text-xs text-rose-600 font-medium">{editGoalError}</p>
+            <p className="text-xs text-blue-300 font-medium">{editGoalError}</p>
           )}
           <div className="flex gap-2 pt-1">
             <button
@@ -1721,7 +1867,7 @@ export default function Dashboard() {
                 setEditGoalAmount("");
                 setEditGoalError("");
               }}
-              className="flex-1 rounded-lg border border-[#FFB6C1]/30 px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#FFB6C1]/20 transition"
+              className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
             >
               Cancelar
             </button>
@@ -1757,16 +1903,16 @@ export default function Dashboard() {
           >
             <div className="space-y-4">
               {/* Información de la meta */}
-              <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
+              <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
                 <div className="mb-2">
                   {goal.description && (
-                    <p className="text-sm text-warm mb-2">{goal.description}</p>
+                    <p className="text-sm text-white/80 mb-2">{goal.description}</p>
                   )}
-                  <p className="text-sm text-warm-dark mb-2">
+                  <p className="text-sm text-white mb-2">
                     Progreso: {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
                   </p>
                   {goal.deadline && (
-                    <p className="text-xs text-warm">
+                    <p className="text-xs text-white/80">
                       Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
                     </p>
                   )}
@@ -1774,36 +1920,36 @@ export default function Dashboard() {
                 <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      current >= target ? "bg-emerald-500" : "gradient-orange"
+                      current >= target ? "bg-cyan-400" : "bg-gradient-to-r from-cyan-400 to-blue-500"
                     }`}
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                <p className="text-xs text-warm mt-1">
+                <p className="text-xs text-white/80 mt-1">
                   {percentage.toFixed(1)}% completado
                 </p>
               </div>
 
               {/* Contribuciones */}
               {progress.length > 0 && (
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
-                  <p className="text-xs font-medium text-warm-dark mb-2">Contribuciones:</p>
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                  <p className="text-xs font-medium text-white mb-2">Contribuciones:</p>
                   <div className="space-y-2">
                     {progress.map((p: any) => (
                       <div key={p.id} className="flex items-center justify-between text-xs">
                         <div>
-                          <span className="text-warm-dark font-medium">
+                          <span className="text-white font-medium">
                             {p.createdBy?.name || p.createdBy?.email || "Usuario"}
                           </span>
                           {p.note && (
-                            <span className="text-warm ml-2">• {p.note}</span>
+                            <span className="text-white/80 ml-2">• {p.note}</span>
                           )}
                         </div>
                         <div className="text-right">
-                          <span className="text-emerald-600 font-medium">
+                          <span className="text-cyan-300 font-medium">
                             +{fmt(Number(p.amount), selectedCurrency)}
                           </span>
-                          <p className="text-warm text-xs">
+                          <p className="text-white/80 text-xs">
                             {new Date(p.date).toLocaleDateString('es-CO')}
                           </p>
                         </div>
@@ -1816,6 +1962,211 @@ export default function Dashboard() {
           </Modal>
         );
       })()}
+
+      {/* Modal de aporte a meta */}
+      {showContributeModal && (() => {
+        const goal = userGoals.find(g => g.id === showContributeModal);
+        if (!goal) return null;
+        
+        // Cargar balance cuando se abre el modal
+        if (walletBalance === null && personalWallet && user) {
+          calculateWalletBalance(personalWallet.id, user.id).then(balance => {
+            setWalletBalance(balance);
+          });
+        }
+        
+        const amount = contributeAmount ? parseFloat(contributeAmount) : 0;
+        const exceedsBalance = walletBalance !== null && amount > walletBalance;
+        
+        return (
+          <Modal
+            isOpen={!!showContributeModal}
+            onClose={() => {
+              setShowContributeModal(null);
+              setContributeAmount("");
+              setContributeError("");
+              setWalletBalance(null);
+            }}
+            title={`Aportar a: ${goal.name}`}
+            maxWidth="md"
+          >
+            <div className="space-y-4">
+              {personalWallet && walletBalance !== null && (
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                  <p className="text-sm text-white">
+                    <strong>Balance disponible:</strong> {fmt(walletBalance, personalWallet.currency || selectedCurrency)}
+                  </p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Monto del aporte
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 text-sm">
+                    {personalWallet?.currency || selectedCurrency}
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={walletBalance !== null ? walletBalance : undefined}
+                    value={contributeAmount}
+                    onChange={(e) => {
+                      setContributeAmount(e.target.value);
+                      setContributeError("");
+                    }}
+                    placeholder="0.00"
+                    className={`w-full rounded-lg border bg-[#FEFFFF] pl-16 pr-4 py-2 text-white focus:outline-none focus:ring-2 ${
+                      exceedsBalance 
+                        ? "border-rose-500 focus:ring-rose-500" 
+                        : "border-white/20 focus:ring-orange-500"
+                    }`}
+                  />
+                </div>
+                {contributeAmount && !isNaN(parseFloat(contributeAmount)) && parseFloat(contributeAmount) > 0 && (
+                  <p className={`mt-2 text-sm ${exceedsBalance ? "text-blue-300" : "text-white/80"}`}>
+                    Total: {fmt(parseFloat(contributeAmount), personalWallet?.currency || selectedCurrency)}
+                    {exceedsBalance && walletBalance !== null && (
+                      <span className="block mt-1">
+                        ⚠️ Excede tu balance disponible por {fmt(amount - walletBalance, personalWallet?.currency || selectedCurrency)}
+                      </span>
+                    )}
+                  </p>
+                )}
+                {contributeError && (
+                  <p className="mt-2 text-sm text-blue-300">{contributeError}</p>
+                )}
+              </div>
+              <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                <p className="text-sm text-white/80">
+                  <strong>Nota:</strong> Este aporte aparecerá como un gasto en tu dashboard del mes actual.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowContributeModal(null);
+                    setContributeAmount("");
+                    setContributeError("");
+                    setWalletBalance(null);
+                  }}
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-white/10 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleContributeToGoal(goal.id, goal.name)}
+                  disabled={!isAuthenticated || !contributeAmount.trim() || exceedsBalance}
+                  className={`flex-1 btn-orange rounded-lg px-3 py-2 text-xs font-medium text-white ${!isAuthenticated || !contributeAmount.trim() || exceedsBalance ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  Aportar
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* Modal de desglose de ahorros */}
+      <Modal
+        isOpen={showSavingsBreakdownModal}
+        onClose={() => setShowSavingsBreakdownModal(false)}
+        title="Desglose de Dinero Ahorrado"
+        maxWidth="2xl"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">Total Ahorrado:</span>
+              <span className="text-xl font-bold text-cyan-300">
+                {(() => {
+                  let totalSavings = 0;
+                  const allGoals = [...userGoals, ...achievedGoals];
+                  for (const goal of allGoals) {
+                    const current = Number(goal.currentAmount);
+                    totalSavings += current;
+                  }
+                  return fmt(totalSavings);
+                })()}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-white mb-2">Metas Pendientes:</h3>
+            {userGoals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
+              <p className="text-sm text-white/80 text-center py-4">No hay metas pendientes</p>
+            ) : (
+              userGoals.filter(g => g.status !== "ACHIEVED").map((goal) => {
+                const current = Number(goal.currentAmount);
+                return (
+                  <div
+                    key={goal.id}
+                    className="rounded-lg border border-white/20 bg-white/10 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white">{goal.name}</p>
+                        {goal.description && (
+                          <p className="text-xs text-white/80 mt-1">{goal.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-cyan-300">
+                          {fmt(current)}
+                        </p>
+                        <p className="text-xs text-white/60">
+                          de {fmt(Number(goal.targetAmount))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-white/20">
+            <h3 className="text-sm font-semibold text-white mb-2">Metas Cumplidas:</h3>
+            {achievedGoals.length === 0 ? (
+              <p className="text-sm text-white/80 text-center py-4">No hay metas cumplidas</p>
+            ) : (
+              achievedGoals.map((goal) => {
+                const current = Number(goal.currentAmount);
+                return (
+                  <div
+                    key={goal.id}
+                    className="rounded-lg border border-cyan-400/50 bg-white/10 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-white">✅ {goal.name}</p>
+                          <span className="rounded-full bg-cyan-400 px-2 py-0.5 text-xs text-white font-medium">
+                            Cumplida
+                          </span>
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs text-white/80 mt-1">{goal.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-cyan-300">
+                          {fmt(current)}
+                        </p>
+                        <p className="text-xs text-white/60">
+                          Meta: {fmt(Number(goal.targetAmount))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1844,9 +2195,9 @@ function Stat({
   }
   return (
     <div className="card-glass p-4">
-      <div className="text-xs text-warm font-medium mb-1.5">{title}</div>
-      <div className="text-2xl font-semibold text-warm-dark mb-1">{value}</div>
-      {hint ? <div className="text-xs text-warm">{hint}</div> : null}
+      <div className="text-xs text-white/80 font-medium mb-1.5">{title}</div>
+      <div className="text-2xl font-semibold text-white mb-1">{value}</div>
+      {hint ? <div className="text-xs text-white/80">{hint}</div> : null}
     </div>
   );
 }

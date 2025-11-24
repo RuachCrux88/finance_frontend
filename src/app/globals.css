@@ -2,22 +2,22 @@
 @import "tailwindcss";
 
 @layer utilities {
-  /* Fondo inspirado en la imagen: gradientes suaves peach/rosa/púrpura */
+  /* Fondo inspirado en Elasti: gradiente teal oscuro a azul-gris claro */
   .bg-app {
     min-height: 100vh;
     background: linear-gradient(
       135deg,
-      #FFF5F0 0%,
-      #FFE8E0 25%,
-      #F5E1E8 50%,
-      #E8D5E8 75%,
-      #E0D0E8 100%
+      #0F4C5C 0%,
+      #1A5F6F 25%,
+      #2D7A8A 50%,
+      #4A9BA8 75%,
+      #6BB5C1 100%
     );
     position: relative;
     overflow-x: hidden;
   }
 
-  /* Capa superior con gradiente peach/rosa suave */
+  /* Capa superior con gradiente teal/azul suave */
   .bg-app::before {
     content: '';
     position: fixed;
@@ -28,23 +28,23 @@
     background: 
       radial-gradient(
         ellipse at 20% 30%,
-        rgba(255, 218, 185, 0.6) 0%,
-        rgba(255, 192, 203, 0.4) 30%,
-        rgba(255, 182, 193, 0.2) 50%,
+        rgba(15, 76, 92, 0.8) 0%,
+        rgba(26, 95, 111, 0.6) 30%,
+        rgba(45, 122, 138, 0.4) 50%,
         transparent 70%
       ),
       radial-gradient(
         ellipse at 80% 70%,
-        rgba(221, 160, 221, 0.5) 0%,
-        rgba(186, 85, 211, 0.3) 30%,
-        rgba(147, 112, 219, 0.2) 50%,
+        rgba(74, 155, 168, 0.6) 0%,
+        rgba(107, 181, 193, 0.4) 30%,
+        rgba(139, 200, 210, 0.2) 50%,
         transparent 70%
       );
     filter: blur(80px);
     z-index: 0;
   }
 
-  /* Capa de profundidad con formas orgánicas */
+  /* Capa de profundidad adicional */
   .bg-app::after {
     content: '';
     position: fixed;
@@ -55,24 +55,24 @@
     background: 
       radial-gradient(
         ellipse at 50% 50%,
-        rgba(255, 228, 225, 0.3) 0%,
-        rgba(255, 218, 185, 0.2) 25%,
-        rgba(221, 160, 221, 0.15) 50%,
+        rgba(15, 76, 92, 0.4) 0%,
+        rgba(45, 122, 138, 0.3) 25%,
+        rgba(74, 155, 168, 0.2) 50%,
         transparent 75%
       );
     filter: blur(100px);
     z-index: 0;
   }
 
-  /* Tarjetas con glassmorphism mejorado para el nuevo fondo */
+  /* Tarjetas con glassmorphism pronunciado estilo Elasti */
   .card-glass {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 218, 185, 0.3);
-    border-radius: 1.25rem;
-    box-shadow: 0 8px 32px rgba(221, 160, 221, 0.12), 
-                0 2px 8px rgba(255, 192, 203, 0.08);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 
+                0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
   /* Tarjetas más oscuras para contraste */
@@ -82,36 +82,43 @@
     box-shadow: 0 8px 32px rgba(21, 21, 21, 0.15);
   }
 
-  /* Degradado peach/rosa que combina con el fondo */
+  /* Degradado profesional azul/teal que combina con el fondo */
   .gradient-orange {
-    background: linear-gradient(135deg, #FFB6C1 0%, #FFA07A 50%, #DA70D6 100%);
+    background: linear-gradient(135deg, #42A5F5 0%, #26A69A 50%, #4FC3F7 100%);
   }
 
-  /* Botón principal con colores más oscuros para mejor contraste */
+  /* Botón principal sólido blanco estilo Elasti */
   .btn-orange {
-    background: linear-gradient(135deg, #C7366F 0%, #B82E5F 100%);
+    background: #FFFFFF;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(199, 54, 111, 0.35);
-    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: #000000;
+    font-weight: 600;
+    border-radius: 0.75rem;
   }
 
   .btn-orange:hover {
-    transform: scale(0.98);
-    background: linear-gradient(135deg, #B82E5F 0%, #9D2550 100%);
-    box-shadow: 0 4px 16px rgba(199, 54, 111, 0.45);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    background: #F5F5F5;
   }
 
   .btn-orange:active {
-    transform: scale(0.96);
+    transform: translateY(0);
   }
 
-  /* Texto con colores que combinan con el fondo */
+  .btn-orange:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Texto con colores que combinan con el fondo teal/azul */
   .text-warm {
-    color: #8B6F7A;
+    color: rgba(255, 255, 255, 0.7);
   }
 
   .text-warm-dark {
-    color: #4A3A4A;
+    color: #FFFFFF;
   }
 
   /* Animación para alertas */
@@ -130,22 +137,81 @@
     animation: slide-up 0.3s ease-out;
   }
 
-  /* Botones de acción estándar con colores que combinan */
+  /* Botones de acción estándar estilo Elasti */
   .btn-edit {
-    @apply text-xs font-medium rounded-lg border border-[#FFB6C1]/40 px-3 py-1.5 text-[#D94680] hover:text-[#C7366F] hover:bg-[#FFB6C1]/20 transition;
+    @apply text-xs font-medium rounded-lg border border-white/20 px-3 py-1.5 text-white/80 hover:text-white hover:bg-white/10 transition;
   }
 
   .btn-delete {
-    @apply text-xs font-medium rounded-lg border border-[#F8A5C2]/40 px-3 py-1.5 text-[#C7366F] hover:text-[#B82E5F] hover:bg-[#F8A5C2]/20 transition;
+    @apply text-xs font-medium rounded-lg border border-white/20 px-3 py-1.5 text-white/80 hover:text-white hover:bg-white/10 transition;
   }
 
   /* Botones de acción pequeños (solo iconos) */
   .btn-edit-icon {
-    @apply text-xs font-medium text-[#D94680] hover:text-[#C7366F] transition;
+    @apply text-xs font-medium text-white/70 hover:text-white transition;
   }
 
   .btn-delete-icon {
-    @apply text-xs font-medium text-[#C7366F] hover:text-[#B82E5F] transition;
+    @apply text-xs font-medium text-white/70 hover:text-white transition;
+  }
+
+  /* Inputs estilo Elasti */
+  input, select, textarea {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 0.75rem;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.2);
+  }
+
+  /* Estilos para elementos select y sus opciones */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  select:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  select option {
+    background: rgba(15, 76, 92, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    padding: 0.75rem 1rem;
+    border: none;
+  }
+
+  select option:hover {
+    background: rgba(66, 165, 245, 0.4);
+  }
+
+  select option:checked,
+  select option:focus {
+    background: rgba(66, 165, 245, 0.5);
+    color: white;
   }
 
   /* Tipografía mejorada para tema financiero */

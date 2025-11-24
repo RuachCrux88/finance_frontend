@@ -80,7 +80,7 @@ function Bar({ value, total }: { value: number; total: number }) {
   return (
     <div className="h-2 rounded-full bg-[#E8E2DE] overflow-hidden">
       <div
-        className="h-full rounded-full gradient-orange"
+        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -137,6 +137,12 @@ export default function WalletDetailPage() {
   const [achievedGoalName, setAchievedGoalName] = useState("");
   const [activeTab, setActiveTab] = useState<"pending" | "achieved">("pending");
   const [achievedGoals, setAchievedGoals] = useState<Goal[]>([]);
+  const [showDeleteWalletModal, setShowDeleteWalletModal] = useState(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<string | null>(null);
+  const [showLeaveWalletModal, setShowLeaveWalletModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [showDeleteGoalModal, setShowDeleteGoalModal] = useState<string | null>(null);
+  const [showCancelGoalModal, setShowCancelGoalModal] = useState<string | null>(null);
 
   // carga
   useEffect(() => {
@@ -206,34 +212,42 @@ export default function WalletDetailPage() {
     }
   }
 
-  async function handleRemoveMember(memberId: string) {
-    if (!confirm("¿Estás seguro de que deseas remover a este miembro?")) return;
+  async function handleRemoveMember() {
+    if (!memberToRemove) return;
     
     try {
-      await api(`/wallets/${id}/members/${memberId}`, {
+      await api(`/wallets/${id}/members/${memberToRemove.id}`, {
         method: "DELETE",
       });
+      setShowRemoveMemberModal(null);
+      setMemberToRemove(null);
       // Recargar billetera
       const w = await api<Wallet>(`/wallets/${id}`);
       setWallet(w);
     } catch (e: any) {
       setErr(e.message || "Error al remover miembro");
+      setShowRemoveMemberModal(null);
+      setMemberToRemove(null);
     }
   }
 
   async function handleLeaveWallet() {
-    if (!confirm("¿Estás seguro de que deseas salirte de esta billetera?")) return;
-    
     try {
       const result = await api<{ success: boolean; message?: string }>(`/wallets/${id}/leave`, {
         method: "POST",
       });
+      setShowLeaveWalletModal(false);
       if (result.message) {
-        alert(result.message);
+        // Mostrar mensaje de éxito antes de redirigir
+        setTimeout(() => {
+          router.push("/wallets");
+        }, 500);
+      } else {
+        router.push("/wallets");
       }
-      router.push("/wallets");
     } catch (e: any) {
       setErr(e.message || "Error al salirse de la billetera");
+      setShowLeaveWalletModal(false);
     }
   }
 
@@ -260,15 +274,15 @@ export default function WalletDetailPage() {
   }
 
   async function handleDeleteWallet() {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta billetera? Esta acción no se puede deshacer.")) return;
-    
     try {
       await api(`/wallets/${id}`, {
         method: "DELETE",
       });
+      setShowDeleteWalletModal(false);
       router.push("/wallets");
     } catch (e: any) {
       setErr(e.message || "Error al eliminar billetera");
+      setShowDeleteWalletModal(false);
     }
   }
 
@@ -644,80 +658,108 @@ export default function WalletDetailPage() {
     <div className="space-y-5">
       <button
         onClick={() => router.push("/wallets")}
-        className="rounded-lg border border-[#E8E2DE] px-3 py-1.5 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+        className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
       >
         ← Volver
       </button>
 
-      <header className="flex flex-col gap-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-semibold text-warm-dark mb-1">
-              {wallet?.name ?? t("walletDetail.wallet")}
-            </h1>
-            <p className="text-sm text-warm mb-1">
-              {wallet?.type === "GROUP" ? t("walletDetail.shared") : t("walletDetail.personal")} • {currency}
-            </p>
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-50/20 via-cyan-50/20 to-blue-50/20 border-2 border-white/20 p-6 sm:p-8 shadow-lg">
+        {/* Decoración de fondo */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-200/20 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-200/20 to-transparent rounded-full blur-2xl"></div>
+        
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg">
+                <span className="text-2xl">💰</span>
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold text-white mb-1">
+                  {wallet?.name ?? t("walletDetail.wallet")}
+                </h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/60 border border-cyan-200 text-xs font-medium text-white">
+                    {wallet?.type === "GROUP" ? "👥 Compartida" : "👤 Personal"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/60 border border-blue-200 text-xs font-medium text-white">
+                    💵 {currency}
+                  </span>
+                </div>
+              </div>
+            </div>
             {wallet?.createdBy && (
-              <p className="text-xs text-warm">
-                {t("walletDetail.owner")}: <span className="font-medium text-warm-dark">{wallet.createdBy.name || wallet.createdBy.email}</span>
-              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-warm">Dueño:</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/60 border border-white/20 text-xs font-semibold text-white">
+                  👑 {wallet.createdBy.name || wallet.createdBy.email}
+                </span>
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             {wallet?.type === "GROUP" && wallet.inviteCode && (
-              <div className="card-glass px-4 py-2.5">
-                <span className="text-xs text-warm font-medium">{t("walletDetail.joinCode")}: </span>
-                <span className="font-mono font-bold text-warm-dark text-base">{wallet.inviteCode}</span>
-                <button
-                  onClick={copyInviteCode}
-                  className="ml-2 text-xs text-warm hover:text-warm-dark font-medium"
-                >
-                  📋 {t("walletDetail.copy")}
-                </button>
+              <div className="card-glass px-4 py-3 border-2 border-cyan-200/50 bg-white/80 backdrop-blur-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-warm font-medium">Código de ingreso:</span>
+                  <span className="font-mono font-bold text-white text-base bg-white/10 px-2 py-1 rounded border border-cyan-200">
+                    {wallet.inviteCode}
+                  </span>
+                  <button
+                    onClick={copyInviteCode}
+                    className="ml-auto px-2 py-1 rounded-lg bg-cyan-500 text-white text-xs font-medium hover:bg-cyan-600 transition-all shadow-md hover:shadow-lg hover:scale-105"
+                  >
+                    📋 Copiar
+                  </button>
+                </div>
               </div>
             )}
             {isOwner && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => {
                     setNewName(wallet?.name || "");
                     setShowEditNameModal(true);
                   }}
-                  className="btn-edit"
+                  className="group relative rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 hover:bg-blue-600 transition-all duration-300 hover:scale-105 active:scale-95"
                 >
-                  ✏️ {t("walletDetail.edit")}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    ✏️ Editar
+                  </span>
                 </button>
                 {!wallet?.isDefault && (
                   <button
-                    onClick={handleDeleteWallet}
-                    className="btn-delete"
+                    onClick={() => setShowDeleteWalletModal(true)}
+                    className="group relative rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 hover:bg-blue-600 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
-                    🗑️ {t("walletDetail.delete")}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      🗑️ Eliminar
+                    </span>
                   </button>
                 )}
               </div>
             )}
           </div>
         </div>
-        {!!err && <p className="text-xs text-rose-600 font-medium">{err}</p>}
+        {!!err && <p className="relative z-10 mt-4 text-xs text-blue-300 font-medium bg-white/80 px-3 py-2 rounded-lg border border-white/20">{err}</p>}
       </header>
 
       {/* Sección de miembros (solo para billeteras grupales) */}
       {wallet?.type === "GROUP" && wallet.members && wallet.members.length > 0 && (
         <section className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-warm-dark">{t("walletDetail.participants")}</h2>
+            <h2 className="text-lg font-semibold text-white">{t("walletDetail.participants")}</h2>
             {currentUser && wallet.members.some(m => m.userId === currentUser.id) && (
               <button
-                onClick={handleLeaveWallet}
-                className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+                onClick={() => setShowLeaveWalletModal(true)}
+                className="rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-white/10 transition"
               >
                 {t("walletDetail.leaveWallet")}
               </button>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             {wallet.members.map((member) => {
               const joinedDate = member.joinedAt ? new Date(member.joinedAt) : null;
               const isNewMember = joinedDate && (Date.now() - joinedDate.getTime()) < 7 * 24 * 60 * 60 * 1000;
@@ -725,11 +767,11 @@ export default function WalletDetailPage() {
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+                  className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2.5"
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-warm-dark text-sm">
+                      <p className="font-medium text-white text-sm">
                         {member.user.name || member.user.email}
                       </p>
                       {isNewMember && (
@@ -747,13 +789,16 @@ export default function WalletDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {member.role === "OWNER" && (
-                      <span className="rounded-full bg-gradient-orange px-2.5 py-0.5 text-xs text-white font-medium">
+                      <span className="rounded-full bg-bg-gradient-to-r from-cyan-400 to-blue-500 px-2.5 py-0.5 text-xs text-white font-medium">
                         {t("walletDetail.owner")}
                       </span>
                     )}
                     {isOwner && member.role !== "OWNER" && (
                       <button
-                        onClick={() => handleRemoveMember(member.id)}
+                        onClick={() => {
+                          setMemberToRemove({ id: member.id, name: member.user.name || member.user.email });
+                          setShowRemoveMemberModal(member.id);
+                        }}
                         className="btn-delete"
                       >
                         ✕ {t("walletDetail.remove")}
@@ -771,7 +816,7 @@ export default function WalletDetailPage() {
       {wallet?.type === "GROUP" && (
         <section className="card-glass p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-warm-dark">{t("walletDetail.goals")}</h2>
+            <h2 className="text-lg font-semibold text-white">{t("walletDetail.goals")}</h2>
             {isOwner && (
               <button
                 onClick={() => {
@@ -788,13 +833,13 @@ export default function WalletDetailPage() {
             )}
           </div>
           {/* Tabs para pendientes y cumplidas */}
-          <div className="flex gap-2 border-b border-[#E8E2DE] mb-4">
+          <div className="flex gap-2 border-b border-white/20 mb-4">
             <button
               onClick={() => setActiveTab("pending")}
               className={`px-4 py-2 text-sm font-medium transition ${
                 activeTab === "pending"
                   ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
-                  : "text-warm hover:text-warm-dark"
+                  : "text-warm hover:text-white"
               }`}
             >
               Pendientes ({goals.filter(g => g.status !== "ACHIEVED").length})
@@ -809,7 +854,7 @@ export default function WalletDetailPage() {
               className={`px-4 py-2 text-sm font-medium transition ${
                 activeTab === "achieved"
                   ? "text-[#DA70D6] border-b-2 border-[#DA70D6]"
-                  : "text-warm hover:text-warm-dark"
+                  : "text-warm hover:text-white"
               }`}
             >
               Cumplidas ({achievedGoals.length})
@@ -820,7 +865,7 @@ export default function WalletDetailPage() {
           {activeTab === "pending" && (
             <>
               {goals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-warm text-sm text-center">
                   {isOwner ? t("walletDetail.noPendingGoalsOwner") : t("walletDetail.noPendingGoals")}
                 </div>
               ) : (
@@ -852,12 +897,12 @@ export default function WalletDetailPage() {
                           });
                       }
                     }}
-                    className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-4 cursor-pointer hover:bg-[#FEFFFF]/50 transition"
+                    className="rounded-lg border border-white/20 bg-white/10 px-4 py-4 cursor-pointer hover:bg-[#FEFFFF]/50 transition"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-warm-dark text-base">{goal.name}</h3>
+                          <h3 className="font-semibold text-white text-base">{goal.name}</h3>
                         </div>
                         {goal.description && (
                           <p className="text-sm text-warm mb-2">{goal.description}</p>
@@ -920,16 +965,7 @@ export default function WalletDetailPage() {
                                 ✏️
                               </button>
                               <button
-                                onClick={async () => {
-                                  if (!confirm(t("walletDetail.confirmDeleteGoal"))) return;
-                                  try {
-                                    await api(`/goals/${goal.id}`, { method: "DELETE" });
-                                    const updated = await api<Goal[]>(`/goals/wallet/${id}`);
-                                    setGoals(updated || []);
-                                  } catch (e: any) {
-                                    alert(e.message || "Error al eliminar meta");
-                                  }
-                                }}
+                                onClick={() => setShowDeleteGoalModal(goal.id)}
                                 className="btn-delete-icon"
                                 title={t("walletDetail.deleteGoal")}
                               >
@@ -937,19 +973,7 @@ export default function WalletDetailPage() {
                               </button>
                               {goal.status === "ACTIVE" && (
                                 <button
-                                  onClick={async () => {
-                                    if (!confirm(t("walletDetail.confirmCancelGoal"))) return;
-                                    try {
-                                      await api(`/goals/${goal.id}`, {
-                                        method: "PATCH",
-                                        body: JSON.stringify({ status: "CANCELLED" }),
-                                      });
-                                      const updated = await api<Goal[]>(`/goals/wallet/${id}`);
-                                      setGoals(updated || []);
-                                    } catch (e: any) {
-                                      alert(e.message || "Error al cancelar meta");
-                                    }
-                                  }}
+                                  onClick={() => setShowCancelGoalModal(goal.id)}
                                   className="text-xs text-gray-600 hover:text-gray-700"
                                   title={t("walletDetail.cancelGoal")}
                                 >
@@ -993,7 +1017,7 @@ export default function WalletDetailPage() {
                       <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            isAchieved ? "bg-emerald-500" : "gradient-orange"
+                            isAchieved ? "bg-emerald-500" : "bg-gradient-to-r from-cyan-400 to-blue-500"
                           }`}
                           style={{ width: `${percentage}%` }}
                         />
@@ -1014,20 +1038,20 @@ export default function WalletDetailPage() {
                               } catch {}
                             }
                           }}
-                          className="text-xs text-warm hover:text-warm-dark font-medium rounded-lg border border-[#E8E2DE] px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
+                          className="text-xs text-warm hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-[#E8E2DE]/50 transition"
                         >
                           {isExpanded ? "▲ Ocultar" : "▼ Ver contribuciones"}
                         </button>
                       </div>
                     </div>
                     {isExpanded && progress.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-[#E8E2DE]">
-                        <p className="text-xs font-medium text-warm-dark mb-2">Contribuciones:</p>
+                      <div className="mt-4 pt-4 border-t border-white/20">
+                        <p className="text-xs font-medium text-white mb-2">Contribuciones:</p>
                         <div className="space-y-2">
                           {progress.map((p: any) => (
                             <div key={p.id} className="flex items-center justify-between text-xs">
                               <div>
-                                <span className="text-warm-dark font-medium">
+                                <span className="text-white font-medium">
                                   {p.createdBy?.name || p.createdBy?.email || "Usuario"}
                                 </span>
                                 {p.note && (
@@ -1049,7 +1073,7 @@ export default function WalletDetailPage() {
                     )}
                     {/* Botón para marcar como cumplida */}
                     {isAchieved && goal.status !== "ACHIEVED" && goal.status !== "CANCELLED" && (
-                      <div className="mt-4 pt-4 border-t border-[#E8E2DE]">
+                      <div className="mt-4 pt-4 border-t border-white/20">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1073,7 +1097,7 @@ export default function WalletDetailPage() {
           {activeTab === "achieved" && (
             <>
               {achievedGoals.length === 0 ? (
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-6 text-warm text-sm text-center">
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-warm text-sm text-center">
                   {t("walletDetail.noAchievedGoals")}
                 </div>
               ) : (
@@ -1090,7 +1114,7 @@ export default function WalletDetailPage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-warm-dark text-base">
+                              <h3 className="font-semibold text-white text-base">
                                 ✅ {goal.name}
                               </h3>
                               <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
@@ -1122,51 +1146,42 @@ export default function WalletDetailPage() {
 
 
       {/* tarjetas resumen */}
-      <section className={`grid gap-3 ${wallet?.type === "PERSONAL" ? "sm:grid-cols-3" : "sm:grid-cols-1"}`}>
-        {wallet?.type === "PERSONAL" ? (
-          <>
-            <SummaryCard
-              label={t("walletDetail.income")}
-              value={fmt(income, currency)}
-              sub={`+ ${t("walletDetail.income").toLowerCase()}`}
-              tone="emerald"
-            />
-            <SummaryCard
-              label={t("walletDetail.expenses")}
-              value={fmt(expense, currency)}
-              sub={`- ${t("walletDetail.outflows")}`}
-              tone="rose"
-            />
-            <SummaryCard
-              label={t("walletDetail.balance")}
-              value={fmt(income - expense, currency)}
-              sub={income - expense >= 0 ? t("walletDetail.positive") : t("walletDetail.negative")}
-              tone={income - expense >= 0 ? "emerald" : "rose"}
-            />
-          </>
-        ) : (
+      {wallet?.type === "PERSONAL" && (
+        <section className="grid gap-3 sm:grid-cols-3">
           <SummaryCard
             label={t("walletDetail.income")}
             value={fmt(income, currency)}
-            sub={t("walletDetail.plusUserContributions")}
+            sub={`+ ${t("walletDetail.income").toLowerCase()}`}
             tone="emerald"
           />
-        )}
-      </section>
+          <SummaryCard
+            label={t("walletDetail.expenses")}
+            value={fmt(expense, currency)}
+            sub={`- ${t("walletDetail.outflows")}`}
+            tone="rose"
+          />
+          <SummaryCard
+            label={t("walletDetail.balance")}
+            value={fmt(income - expense, currency)}
+            sub={income - expense >= 0 ? t("walletDetail.positive") : t("walletDetail.negative")}
+            tone={income - expense >= 0 ? "emerald" : "rose"}
+          />
+        </section>
+      )}
 
       {/* Actividad reciente */}
       <section className="card-glass p-5">
-        <h3 className="mb-4 text-lg font-semibold text-warm-dark">Actividad reciente</h3>
+        <h3 className="mb-4 text-lg font-semibold text-white">Actividad reciente</h3>
         <ul className="space-y-2">
           {recent.length === 0 && <li className="text-warm text-sm">Sin movimientos aún.</li>}
           {recent.map((tx) => (
             <li
               key={tx.id}
-              className="flex items-start justify-between rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-3 py-2.5"
+              className="flex items-start justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2.5"
             >
               <div className="text-xs flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-warm-dark">
+                  <p className="font-medium text-white">
                     {tx.description || "(sin descripción)"}
                   </p>
                   {tx.category && (
@@ -1204,7 +1219,7 @@ export default function WalletDetailPage() {
               <div className="text-right ml-3">
                 <div
                   className={`font-semibold text-sm ${
-                    tx.type === "EXPENSE" ? "text-rose-600" : tx.type === "SETTLEMENT" ? "text-indigo-600" : "text-emerald-600"
+                    tx.type === "EXPENSE" ? "text-blue-300" : tx.type === "SETTLEMENT" ? "text-indigo-600" : "text-emerald-600"
                   }`}
                 >
                   {tx.type === "EXPENSE" ? "-" : "+"}
@@ -1235,18 +1250,18 @@ export default function WalletDetailPage() {
         </p>
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.walletCode")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.walletCode")}</label>
                 <input
                   type="text"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="ABCD1234"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 font-mono"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 font-mono"
                   maxLength={8}
                 />
               </div>
               {joinError && (
-                <p className="text-xs text-rose-600 font-medium">{joinError}</p>
+                <p className="text-xs text-blue-300 font-medium">{joinError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1255,7 +1270,7 @@ export default function WalletDetailPage() {
                     setJoinCode("");
                     setJoinError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                 >
                   {t("walletDetail.cancel")}
                 </button>
@@ -1284,17 +1299,17 @@ export default function WalletDetailPage() {
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalName")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalName")}</label>
                 <input
                   type="text"
                   value={goalName}
                   onChange={(e) => setGoalName(e.target.value)}
                   placeholder={t("walletDetail.goalNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Monto objetivo</label>
+                <label className="block text-xs font-medium text-white mb-1.5">Monto objetivo</label>
                 <input
                   type="number"
                   value={goalAmount}
@@ -1302,30 +1317,30 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDescription")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalDescription")}</label>
                 <textarea
                   value={goalDescription}
                   onChange={(e) => setGoalDescription(e.target.value)}
                   placeholder={t("walletDetail.goalDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">Fecha límite (opcional)</label>
+                <label className="block text-xs font-medium text-white mb-1.5">Fecha límite (opcional)</label>
                 <input
                   type="date"
                   value={goalDeadline}
                   onChange={(e) => setGoalDeadline(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                 />
               </div>
               {goalError && (
-                <p className="text-xs text-rose-600 font-medium">{goalError}</p>
+                <p className="text-xs text-blue-300 font-medium">{goalError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1337,7 +1352,7 @@ export default function WalletDetailPage() {
                     setGoalDescription("");
                     setGoalError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                 >
                   {t("walletDetail.cancel")}
                 </button>
@@ -1366,17 +1381,17 @@ export default function WalletDetailPage() {
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalName")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalName")}</label>
                 <input
                   type="text"
                   value={editGoalName}
                   onChange={(e) => setEditGoalName(e.target.value)}
                   placeholder={t("walletDetail.goalNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalAmount")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalAmount")}</label>
                 <input
                   type="number"
                   value={editGoalAmount}
@@ -1384,30 +1399,30 @@ export default function WalletDetailPage() {
                   placeholder="0.00"
                   min="0.01"
                   step="0.01"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDescription")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalDescription")}</label>
                 <textarea
                   value={editGoalDescription}
                   onChange={(e) => setEditGoalDescription(e.target.value)}
                   placeholder={t("walletDetail.goalDescriptionPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.goalDeadline")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.goalDeadline")}</label>
                 <input
                   type="date"
                   value={editGoalDeadline}
                   onChange={(e) => setEditGoalDeadline(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                 />
               </div>
               {editGoalError && (
-                <p className="text-xs text-rose-600 font-medium">{editGoalError}</p>
+                <p className="text-xs text-blue-300 font-medium">{editGoalError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1419,7 +1434,7 @@ export default function WalletDetailPage() {
                     setEditGoalDescription("");
                     setEditGoalError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                 >
                   Cancelar
                 </button>
@@ -1471,22 +1486,22 @@ export default function WalletDetailPage() {
           setNewName("");
           setNameError("");
         }}
-        title={t("wallets.editName")}
+        title="Editar nombre de billetera"
         maxWidth="sm"
       >
         <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("wallets.newName")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("wallets.newName")}</label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder={t("walletDetail.walletNamePlaceholder")}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               {nameError && (
-                <p className="text-xs text-rose-600 font-medium">{nameError}</p>
+                <p className="text-xs text-blue-300 font-medium">{nameError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1495,7 +1510,7 @@ export default function WalletDetailPage() {
                     setNewName("");
                     setNameError("");
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                 >
                   {t("walletDetail.cancel")}
                 </button>
@@ -1527,28 +1542,23 @@ export default function WalletDetailPage() {
         <div className="space-y-3">
               {wallet?.type !== "GROUP" && (
                 <div>
-                  <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("transactions.type")}</label>
+                  <label className="block text-xs font-medium text-white mb-1.5">{t("transactions.type")}</label>
                   <select
                     value={txType}
                     onChange={(e) => {
                       setTxType(e.target.value as "INCOME" | "EXPENSE");
                       setTxCategory("");
                     }}
-                    className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                    className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                   >
                     <option value="EXPENSE">{t("walletDetail.expense")}</option>
                     <option value="INCOME">{t("walletDetail.income")}</option>
                   </select>
                 </div>
               )}
-              {wallet?.type === "GROUP" && (
-                <div className="rounded-lg bg-gradient-to-r from-[#E8D5E8]/30 to-[#DA70D6]/20 border border-[#DA70D6]/30 px-3 py-2 text-xs font-medium text-warm-dark">
-                  {t("walletDetail.contribution")}
-                </div>
-              )}
               {wallet?.type === "GROUP" && txType === "EXPENSE" && (
                 <div>
-                  <label className="block text-xs font-medium text-warm-dark mb-1.5">
+                  <label className="block text-xs font-medium text-white mb-1.5">
                     <input
                       type="checkbox"
                       checked={showSplitModal}
@@ -1565,12 +1575,12 @@ export default function WalletDetailPage() {
                     {t("walletDetail.splitExpense")}
                   </label>
                   {showSplitModal && wallet?.members && (
-                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 p-3">
+                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-lg border border-white/20 bg-white/10 p-3">
                       {wallet.members.map((member) => {
                         const split = splitMembers.find(s => s.userId === member.userId);
                         return (
                           <div key={member.id} className="flex items-center gap-2">
-                            <span className="text-xs text-warm-dark flex-1">
+                            <span className="text-xs text-white flex-1">
                               {member.user.name || member.user.email}
                             </span>
                             <input
@@ -1586,18 +1596,18 @@ export default function WalletDetailPage() {
                                 });
                               }}
                               placeholder="0.00"
-                              className="w-24 rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-2 py-1 text-xs text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                              className="w-24 rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-2 py-1 text-xs text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                             />
                           </div>
                         );
                       })}
                       {txAmount && (
-                        <div className="mt-2 pt-2 border-t border-[#E8E2DE] text-xs">
+                        <div className="mt-2 pt-2 border-t border-white/20 text-xs">
                           <span className="text-warm">{t("walletDetail.totalSplit")}: </span>
                           <span className={`font-medium ${
                             Math.abs((splitMembers.reduce((sum, s) => sum + s.amount, 0)) - parseFloat(txAmount)) < 0.01
                               ? "text-emerald-600"
-                              : "text-rose-600"
+                              : "text-blue-300"
                           }`}>
                             {fmt(splitMembers.reduce((sum, s) => sum + s.amount, 0), currency)}
                           </span>
@@ -1609,11 +1619,11 @@ export default function WalletDetailPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.category")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.category")}</label>
                 <select
                   value={txCategory}
                   onChange={(e) => setTxCategory(e.target.value)}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-[#FE8625]/30 focus:border-[#FE8625]/50"
                 >
                   <option value="">{t("walletDetail.selectCategory")}</option>
                   {(txType === "INCOME" ? incCats : expCats).map(c => {
@@ -1623,7 +1633,7 @@ export default function WalletDetailPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.amount")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.amount")}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1631,21 +1641,21 @@ export default function WalletDetailPage() {
                   value={txAmount}
                   onChange={(e) => setTxAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.description")}</label>
+                <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.description")}</label>
                 <input
                   type="text"
                   value={txDesc}
                   onChange={(e) => setTxDesc(e.target.value)}
                   placeholder={t("walletDetail.descriptionPlaceholder")}
-                  className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                  className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                 />
               </div>
               {txError && (
-                <p className="text-xs text-rose-600 font-medium">{txError}</p>
+                <p className="text-xs text-blue-300 font-medium">{txError}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <button
@@ -1658,7 +1668,7 @@ export default function WalletDetailPage() {
                     setShowSplitModal(false);
                     setSplitMembers([]);
                   }}
-                  className="flex-1 rounded-lg border border-[#E8E2DE] px-3 py-2 text-xs font-medium text-warm-dark hover:bg-[#E8E2DE]/50 transition"
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                 >
                   {t("walletDetail.cancel")}
                 </button>
@@ -1693,24 +1703,24 @@ export default function WalletDetailPage() {
 
               <div className="space-y-4">
                 {/* Información de la meta */}
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
-                  <p className="text-sm text-warm-dark mb-2">
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                  <p className="text-sm text-white mb-2">
                     {t("walletDetail.goalProgress")}: {fmt(Number(goal.currentAmount), currency)} / {fmt(Number(goal.targetAmount), currency)}
                   </p>
                   <div className="h-3 rounded-full bg-[#E8E2DE] overflow-hidden">
                     <div
-                      className="h-full rounded-full gradient-orange transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all"
                       style={{ width: `${Math.min((Number(goal.currentAmount) / Number(goal.targetAmount)) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Botón para hacer transacción */}
-                <div className="rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/30 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-warm-dark mb-3">{t("walletDetail.makeContribution")}</h3>
+                <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-white mb-3">{t("walletDetail.makeContribution")}</h3>
                   <div className="space-y-2">
                     <div>
-                      <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.contributionAmount")}</label>
+                      <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.contributionAmount")}</label>
                       <input
                         type="number"
                         step="0.01"
@@ -1718,21 +1728,21 @@ export default function WalletDetailPage() {
                         value={goalTransactionAmount}
                         onChange={(e) => setGoalTransactionAmount(e.target.value)}
                         placeholder={t("walletDetail.contributionAmountPlaceholder")}
-                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                        className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-warm-dark mb-1.5">{t("walletDetail.description")}</label>
+                      <label className="block text-xs font-medium text-white mb-1.5">{t("walletDetail.description")}</label>
                       <input
                         type="text"
                         value={goalTransactionDesc}
                         onChange={(e) => setGoalTransactionDesc(e.target.value)}
                         placeholder={t("walletDetail.contributionAmountPlaceholder")}
-                        className="w-full rounded-lg border border-[#E8E2DE] bg-[#FEFFFF]/50 px-3 py-2 text-sm text-warm-dark placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
+                        className="w-full rounded-lg border border-white/20 bg-[#FEFFFF]/50 px-3 py-2 text-sm text-white placeholder:text-warm focus:outline-none focus:ring-2 focus:ring-[#DA70D6]/30 focus:border-[#DA70D6]/50"
                       />
                     </div>
                     {goalTransactionError && (
-                      <p className="text-xs text-rose-600 font-medium">{goalTransactionError}</p>
+                      <p className="text-xs text-blue-300 font-medium">{goalTransactionError}</p>
                     )}
                     <button
                       onClick={() => handleCreateGoalTransaction(goal.id)}
@@ -1771,7 +1781,7 @@ export default function WalletDetailPage() {
       >
         <div className="text-center">
           <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-warm-dark mb-2">
+          <h2 className="text-2xl font-bold text-white mb-2">
             ¡Felicitaciones!
           </h2>
           <p className="text-lg text-warm mb-6">
@@ -1791,6 +1801,273 @@ export default function WalletDetailPage() {
           </button>
         </div>
       </Modal>
+
+      {/* Modal de confirmación para eliminar billetera */}
+      <Modal
+        isOpen={showDeleteWalletModal}
+        onClose={() => setShowDeleteWalletModal(false)}
+        title="¿Eliminar billetera?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
+            <p className="text-sm text-white font-medium mb-2">
+              ⚠️ Esta acción no se puede deshacer
+            </p>
+            <p className="text-xs text-warm">
+              Se eliminarán todas las transacciones, metas y datos asociados a esta billetera.
+            </p>
+          </div>
+          
+          {wallet && (
+            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+              <p className="text-xs text-white mb-1">
+                <strong>Billetera a eliminar:</strong>
+              </p>
+              <p className="text-sm font-semibold text-white">
+                {wallet.name}
+              </p>
+              <p className="text-xs text-warm mt-1">
+                {wallet.type === "GROUP" ? "Billetera grupal" : "Billetera personal"} • {wallet.currency}
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setShowDeleteWalletModal(false)}
+              className="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-[#E8E2DE]/50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteWallet}
+              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              🗑️ Eliminar billetera
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para remover miembro */}
+      <Modal
+        isOpen={!!showRemoveMemberModal && !!memberToRemove}
+        onClose={() => {
+          setShowRemoveMemberModal(null);
+          setMemberToRemove(null);
+        }}
+        title="¿Remover miembro?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
+            <p className="text-sm text-white font-medium mb-2">
+              ⚠️ Confirmar acción
+            </p>
+            <p className="text-xs text-warm">
+              El miembro será removido de esta billetera y perderá acceso a todas las transacciones y metas.
+            </p>
+          </div>
+          
+          {memberToRemove && (
+            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+              <p className="text-xs text-white mb-1">
+                <strong>Miembro a remover:</strong>
+              </p>
+              <p className="text-sm font-semibold text-white">
+                {memberToRemove.name}
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => {
+                setShowRemoveMemberModal(null);
+                setMemberToRemove(null);
+              }}
+              className="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-[#E8E2DE]/50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleRemoveMember}
+              className="flex-1 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              ✕ Remover miembro
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para salirse de billetera */}
+      <Modal
+        isOpen={showLeaveWalletModal}
+        onClose={() => setShowLeaveWalletModal(false)}
+        title="¿Salirte de esta billetera?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
+            <p className="text-sm text-white font-medium mb-2">
+              ⚠️ Confirmar acción
+            </p>
+            <p className="text-xs text-warm">
+              Perderás acceso a esta billetera y a todas sus transacciones y metas. Podrás volver a unirte si tienes el código de ingreso.
+            </p>
+          </div>
+          
+          {wallet && (
+            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+              <p className="text-xs text-white mb-1">
+                <strong>Billetera:</strong>
+              </p>
+              <p className="text-sm font-semibold text-white">
+                {wallet.name}
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setShowLeaveWalletModal(false)}
+              className="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-[#E8E2DE]/50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleLeaveWallet}
+              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              🚪 Salirme
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para eliminar meta */}
+      <Modal
+        isOpen={!!showDeleteGoalModal}
+        onClose={() => setShowDeleteGoalModal(null)}
+        title="¿Eliminar meta?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
+            <p className="text-sm text-white font-medium mb-2">
+              ⚠️ Esta acción no se puede deshacer
+            </p>
+            <p className="text-xs text-warm">
+              Se eliminará la meta y todos sus datos asociados.
+            </p>
+          </div>
+          
+          {showDeleteGoalModal && (() => {
+            const goal = goals.find(g => g.id === showDeleteGoalModal);
+            if (!goal) return null;
+            return (
+              <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                <p className="text-xs text-white mb-1">
+                  <strong>Meta a eliminar:</strong>
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {goal.name}
+                </p>
+              </div>
+            );
+          })()}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setShowDeleteGoalModal(null)}
+              className="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-[#E8E2DE]/50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                if (!showDeleteGoalModal) return;
+                try {
+                  await api(`/goals/${showDeleteGoalModal}`, { method: "DELETE" });
+                  const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                  setGoals(updated || []);
+                  setShowDeleteGoalModal(null);
+                } catch (e: any) {
+                  setErr(e.message || "Error al eliminar meta");
+                  setShowDeleteGoalModal(null);
+                }
+              }}
+              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              🗑️ Eliminar meta
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para cancelar meta */}
+      <Modal
+        isOpen={!!showCancelGoalModal}
+        onClose={() => setShowCancelGoalModal(null)}
+        title="¿Cancelar meta?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
+            <p className="text-sm text-white font-medium mb-2">
+              ⚠️ Confirmar acción
+            </p>
+            <p className="text-xs text-warm">
+              La meta será marcada como cancelada y no podrá recibir más aportes.
+            </p>
+          </div>
+          
+          {showCancelGoalModal && (() => {
+            const goal = goals.find(g => g.id === showCancelGoalModal);
+            if (!goal) return null;
+            return (
+              <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3">
+                <p className="text-xs text-white mb-1">
+                  <strong>Meta a cancelar:</strong>
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {goal.name}
+                </p>
+              </div>
+            );
+          })()}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setShowCancelGoalModal(null)}
+              className="flex-1 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-[#E8E2DE]/50 transition"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                if (!showCancelGoalModal) return;
+                try {
+                  await api(`/goals/${showCancelGoalModal}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: "CANCELLED" }),
+                  });
+                  const updated = await api<Goal[]>(`/goals/wallet/${id}`);
+                  setGoals(updated || []);
+                  setShowCancelGoalModal(null);
+                } catch (e: any) {
+                  setErr(e.message || "Error al cancelar meta");
+                  setShowCancelGoalModal(null);
+                }
+              }}
+              className="flex-1 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              ❌ Cancelar meta
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1808,7 +2085,7 @@ function SummaryCard({
 }) {
   const borderColor =
     tone === "rose"
-      ? "border-rose-200"
+      ? "border-white/20"
       : tone === "emerald"
         ? "border-emerald-200"
         : "border-[#D7B59B]";
@@ -1816,7 +2093,7 @@ function SummaryCard({
   return (
     <div className={`card-glass p-4 border ${borderColor}`}>
       <p className="text-xs font-medium text-warm mb-1.5">{label}</p>
-      <p className="text-2xl font-semibold text-warm-dark mb-1">{value}</p>
+      <p className="text-2xl font-semibold text-white mb-1">{value}</p>
       <p className="text-xs text-warm">{sub}</p>
     </div>
   );

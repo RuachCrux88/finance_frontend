@@ -64,16 +64,16 @@ export default function GoogleLoginButton() {
         {loading ? "Conectando..." : "Iniciar con Google"}
       </button>
       {error && (
-        <div className="text-xs text-rose-600 bg-rose-50/30 border border-rose-200 rounded-lg p-3 max-w-md">
-          <p className="font-medium mb-2">⚠️ Error de conexión</p>
-          <p className="mb-2">{error}</p>
-          <div className="space-y-2 text-warm text-xs">
-            <p className="font-medium text-warm-dark">Para solucionarlo:</p>
+        <div className="text-xs text-blue-300 bg-white/10 border border-white/20 rounded-lg p-3 max-w-md backdrop-blur-sm">
+          <p className="font-medium mb-2 text-white">Error de conexión</p>
+          <p className="mb-2 text-white/80">{error}</p>
+          <div className="space-y-2 text-white/70 text-xs">
+            <p className="font-medium text-white">Para solucionarlo:</p>
             <ol className="list-decimal list-inside space-y-1 ml-2">
               <li>Asegúrate de que el backend esté corriendo</li>
               <li>Si estás en desarrollo, ejecuta en una terminal:</li>
             </ol>
-            <code className="block mt-2 text-xs bg-warm-dark/10 px-3 py-2 rounded font-mono">
+            <code className="block mt-2 text-xs bg-white/10 px-3 py-2 rounded font-mono text-white/90">
               cd finance-backend<br />
               npm run start:dev
             </code>
