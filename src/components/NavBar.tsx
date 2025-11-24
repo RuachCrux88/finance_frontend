@@ -39,7 +39,13 @@ export default function Navbar() {
         setMe(u);
         // Cargar racha si el usuario está autenticado
         if (u) {
-          api('/transactions/streak')
+          api<{
+            currentStreak: number;
+            status: 'active' | 'danger' | 'lost' | 'none';
+            longestStreak: number;
+            longestStreakPeriod: { start: string; end: string } | null;
+            lastActivityDate: string | null;
+          }>('/transactions/streak')
             .then((data) => setStreak(data))
             .catch(() => setStreak(null));
         }
@@ -54,7 +60,13 @@ export default function Navbar() {
   // Recargar racha cuando cambia la ruta (para actualizar después de crear transacciones)
   useEffect(() => {
     if (me) {
-      api('/transactions/streak')
+      api<{
+        currentStreak: number;
+        status: 'active' | 'danger' | 'lost' | 'none';
+        longestStreak: number;
+        longestStreakPeriod: { start: string; end: string } | null;
+        lastActivityDate: string | null;
+      }>('/transactions/streak')
         .then((data) => setStreak(data))
         .catch(() => setStreak(null));
     }
