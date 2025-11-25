@@ -136,8 +136,8 @@ export default function Navbar() {
                   href={l.href}
                   className={`flex items-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-3 transition-all duration-200 uppercase text-xs sm:text-sm font-medium ${
                     active
-                      ? "bg-white/20 text-white backdrop-blur-sm"
-                      : "text-white/70 hover:text-white hover:bg-white/10"
+                      ? "bg-cyan-500 text-white"
+                      : "bg-gray-700 text-white hover:bg-cyan-600"
                   }`}
                 >
                   <span>{l.label.toUpperCase()}</span>
@@ -150,7 +150,7 @@ export default function Navbar() {
               href="https://drive.google.com/drive/folders/1fYgAQwcilhWWhJ4wDVInSbErAiw-H5Q9?usp=drive_link"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200"
+              className="flex items-center gap-3 rounded-xl px-4 py-3 bg-gray-700 text-white hover:bg-cyan-600 transition-all duration-200"
             >
               <span className="text-sm">{t("navbar.mobile")}</span>
             </a>
@@ -238,13 +238,13 @@ export default function Navbar() {
               <div className="space-y-2">
                 <Link
                   href="/settings"
-                  className="flex items-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 uppercase text-xs font-medium"
+                  className="flex items-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 text-white hover:bg-cyan-600 transition-all duration-200 uppercase text-xs font-medium"
                 >
                   <span>{t("navbar.settings").toUpperCase()}</span>
                 </Link>
                 <button
                   onClick={logout}
-                  className="w-full flex items-center justify-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-black hover:bg-white/90 transition-all duration-200 font-semibold shadow-md text-xs sm:text-sm"
+                  className="w-full flex items-center justify-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-black hover:bg-gray-100 transition-all duration-200 font-semibold shadow-md text-xs sm:text-sm"
                 >
                   <span className="uppercase">{t("navbar.logout")}</span>
                 </button>
