@@ -165,15 +165,14 @@ export default function WalletsPage() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-white mb-1">{t("wallets.title")}</h1>
-          <p className="text-white/80 text-sm">{t("wallets.subtitle")}</p>
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-white mb-2">{t("wallets.title")}</h1>
+          <p className="text-white/90 text-sm sm:text-base">{t("wallets.subtitle")}</p>
         </div>
         <button
           onClick={() => setShowJoinModal(true)}
-          className="group relative rounded-xl bg-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/60 hover:bg-cyan-600 transition-all duration-300 hover:scale-105 active:scale-95 w-full sm:w-auto animate-pulse hover:animate-none"
+          className="group relative rounded-lg bg-white px-6 py-3 text-sm font-semibold text-black shadow-md hover:shadow-lg hover:bg-gray-100 transition-all duration-200 w-full sm:w-auto"
         >
           <span className="relative z-10 flex items-center gap-2">
-            <span className="text-lg">✨</span>
             <span>+ {t("wallets.joinByCode")}</span>
             <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">→</span>
           </span>
@@ -184,10 +183,10 @@ export default function WalletsPage() {
       <div className="flex gap-2 sm:gap-3 flex-wrap">
         <button
           onClick={() => setFilter("all")}
-          className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
             filter === "all"
-              ? "btn-orange text-white shadow-lg shadow-[#C7366F]/30"
-              : "border border-cyan-300/40 bg-white/60 text-white hover:bg-white/80 hover:border-cyan-300/60 hover:shadow-md"
+              ? "bg-white text-black"
+              : "bg-white/10 text-white hover:bg-white/20 border border-white/20"
           }`}
         >
           {t("wallets.all")}
@@ -215,9 +214,9 @@ export default function WalletsPage() {
       </div>
 
       {/* Crear */}
-      <section className="card-glass p-3 sm:p-4 lg:p-5">
+      <section className="card-glass p-5">
         <h2 className="text-lg font-semibold text-white mb-4">{t("wallets.createWallet")}</h2>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
             <label className="text-xs text-white/80 font-medium mb-1.5 block">{t("wallets.walletName")}</label>
             <input
@@ -274,8 +273,8 @@ export default function WalletsPage() {
           <article key={w.id} className="card-glass p-4 hover:shadow-lg transition-all">
             <header className="flex items-start justify-between mb-3">
               <div className="flex-1">
-                <h3 className="text-base font-semibold text-white mb-1">{w.name}</h3>
-                <p className="text-xs text-white/80">
+                <h3 className="text-lg font-semibold text-white mb-1">{w.name}</h3>
+                <p className="text-sm text-white/90">
                   {w.type === "GROUP" ? t("wallets.shared") : t("wallets.personal")} • {w.currency}
                 </p>
               </div>
@@ -290,23 +289,23 @@ export default function WalletsPage() {
                       }}
                       className="btn-edit"
                     >
-                      ✏️ {t("common.edit")}
+                      {t("common.edit")}
                     </button>
                     <button
                       onClick={() => openDeleteModal(w)}
                       className="btn-delete"
                     >
-                      🗑️ {t("common.delete")}
+                      {t("common.delete")}
                     </button>
                   </>
                 )}
                 <button
                   onClick={() => router.push(`/wallets/${w.id}`)}
-                  className="group relative rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 hover:bg-blue-600 transition-all duration-300 hover:scale-105 active:scale-95"
+                  className="group relative rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black shadow-md hover:shadow-lg hover:bg-gray-100 transition-all duration-200"
                 >
                   <span className="relative z-10 flex items-center gap-1.5">
                     <span>Abrir billetera</span>
-                    <span className="transform transition-transform duration-300 group-hover:translate-x-1">→</span>
+                    <span className="transform transition-transform duration-200 group-hover:translate-x-1">→</span>
                   </span>
                 </button>
               </div>
@@ -502,7 +501,7 @@ export default function WalletsPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-blue-200 bg-blue-50/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Esta acción no se puede deshacer
+              Advertencia: Esta acción no se puede deshacer
             </p>
             <p className="text-xs text-white/80">
               Se eliminarán todas las transacciones, metas y datos asociados a esta billetera.
@@ -535,9 +534,9 @@ export default function WalletsPage() {
             </button>
             <button
               onClick={handleDelete}
-              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-200"
             >
-              🗑️ Eliminar billetera
+              Eliminar billetera
             </button>
           </div>
         </div>

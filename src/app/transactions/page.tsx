@@ -255,13 +255,13 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("transactions.title")}</h1>
-        <p className="text-warm text-sm font-financial">{t("transactions.subtitle")}</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-2 font-financial-bold">{t("transactions.title")}</h1>
+        <p className="text-white/90 text-sm sm:text-base font-financial">{t("transactions.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Registrar */}
-        <section className="card-glass p-3 sm:p-4 lg:p-5">
+        <section className="card-glass p-5">
           <h2 className="mb-4 text-lg font-semibold text-white font-financial-bold">{t("transactions.register")}</h2>
 
           <div className="grid gap-3">
@@ -432,7 +432,7 @@ export default function TransactionsPage() {
                                 }}
                                 className="text-xs text-cyan-300 hover:text-cyan-200 font-medium block"
                               >
-                                💰 Aportar a una meta en su lugar
+                                Aportar a una meta en su lugar
                               </button>
                             )}
                             <button
@@ -542,7 +542,7 @@ export default function TransactionsPage() {
         </section>
 
         {/* Actividad */}
-        <section className="card-glass p-3 sm:p-4 lg:p-5">
+        <section className="card-glass p-5">
           <h2 className="mb-4 text-lg font-semibold text-white">{t("transactions.activity")}</h2>
           <ul className="space-y-2">
             {feed.length === 0 && (

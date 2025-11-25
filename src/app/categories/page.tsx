@@ -132,18 +132,18 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       {/* Encabezado */}
       <div>
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1">{t("categories.title")}</h1>
-        <p className="text-white/80 text-sm">{t("categories.subtitle")}</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-2">{t("categories.title")}</h1>
+        <p className="text-white/90 text-sm sm:text-base">{t("categories.subtitle")}</p>
       </div>
 
       {/* Filtro por tipo */}
       <div className="flex gap-2 sm:gap-3 flex-wrap">
         <button
           onClick={() => setType("EXPENSE")}
-          className={`rounded-xl px-5 py-2.5 text-sm font-financial-bold transition-all duration-200 ${
+          className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
             type === "EXPENSE"
-              ? "btn-orange text-white shadow-lg shadow-cyan-500/30"
-              : "border border-cyan-300/40 bg-white/60 text-white hover:bg-white/80 hover:border-cyan-300/60 hover:shadow-md"
+              ? "bg-white text-black"
+              : "bg-white/10 text-white hover:bg-white/20 border border-white/20"
           }`}
         >
           {t("categories.expenses")}
@@ -161,7 +161,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Crear nueva categoría */}
-      <div className="card-glass p-3 sm:p-4 lg:p-5">
+      <div className="card-glass p-5">
         <h2 className="text-lg font-semibold text-white mb-4">{t("categories.createCategory")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
@@ -195,7 +195,7 @@ export default function CategoriesPage() {
 
       {/* Categorías del sistema */}
       {systemCategories.length > 0 && (
-        <div className="card-glass p-3 sm:p-4 lg:p-5">
+        <div className="card-glass p-5">
           <h2 className="text-lg font-semibold text-white mb-4">
             {t("categories.predefinedCategories")} {type === "EXPENSE" ? `(${t("categories.expenses")})` : `(${t("categories.income")})`}
           </h2>
@@ -241,8 +241,8 @@ export default function CategoriesPage() {
                           const translated = translateCategory(cat, language);
                           return (
                             <>
-                              <p className="font-medium text-white text-sm">{translated.name}</p>
-                              <p className="text-xs text-white/80 mt-0.5">
+                              <p className="font-medium text-white text-base">{translated.name}</p>
+                              <p className="text-sm text-white/90 mt-1">
                                 {translated.description || t("dashboard.noDescription")}
                               </p>
                             </>
@@ -253,7 +253,7 @@ export default function CategoriesPage() {
                         onClick={() => startEdit(cat)}
                         className="rounded-lg border border-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-[#E8E2DE]/50 transition"
                       >
-                        ✏️ {t("common.edit")}
+                        {t("common.edit")}
                       </button>
                     </>
                   )}
@@ -266,7 +266,7 @@ export default function CategoriesPage() {
 
       {/* Categorías del usuario */}
       {userCategories.length > 0 && (
-        <div className="card-glass p-3 sm:p-4 lg:p-5">
+        <div className="card-glass p-5">
           <h2 className="text-lg font-semibold text-white mb-4">{t("categories.userCategories")}</h2>
           <div className="space-y-2">
             {userCategories.map((cat) => (
@@ -303,8 +303,8 @@ export default function CategoriesPage() {
                 ) : (
                   <>
                     <div className="flex-1">
-                      <p className="font-medium text-white text-sm">{cat.name}</p>
-                      <p className="text-xs text-white/80 mt-0.5">
+                      <p className="font-medium text-white text-base">{cat.name}</p>
+                      <p className="text-sm text-white/90 mt-1">
                         {cat.description || t("dashboard.noDescription")}
                       </p>
                     </div>
@@ -313,13 +313,13 @@ export default function CategoriesPage() {
                         onClick={() => startEdit(cat)}
                         className="btn-edit"
                       >
-                        ✏️ {t("common.edit")}
+                        {t("common.edit")}
                       </button>
                       <button
                         onClick={() => remove(cat.id)}
                         className="btn-delete"
                       >
-                        🗑️ {t("common.delete")}
+                        {t("common.delete")}
                       </button>
                     </div>
                   </>

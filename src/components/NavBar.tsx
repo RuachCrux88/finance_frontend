@@ -88,31 +88,30 @@ export default function Navbar() {
       {/* Botón hamburguesa para móvil */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="fixed top-3 left-3 z-[60] lg:hidden p-2.5 sm:p-3 rounded-lg bg-white/10 backdrop-blur-sm shadow-lg border border-white/20 text-white font-semibold text-lg sm:text-xl hover:bg-white/20 transition-colors"
+        className="fixed top-4 left-4 z-[60] lg:hidden p-3 rounded-lg bg-white/10 backdrop-blur-sm shadow-lg border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors"
         aria-label="Toggle menu"
       >
-        {mobileMenuOpen ? "✕" : "☰"}
+        {mobileMenuOpen ? "×" : "☰"}
       </button>
 
       {/* Overlay para móvil */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[45] lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[55] lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Navbar */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 sm:w-72 z-[50] transform transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 h-screen w-64 z-50 transform transition-transform duration-300 ease-in-out ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
-        onClick={(e) => e.stopPropagation()}
       >
-        <nav className="h-full card-glass rounded-none rounded-r-2xl flex flex-col p-4 sm:p-5 lg:p-6 border-r border-white/10 overflow-y-auto">
+        <nav className="h-full card-glass rounded-none rounded-r-2xl flex flex-col p-6 border-r border-white/10 overflow-y-auto bg-[#121212]">
         {/* Logo y marca */}
-        <Link href="/" className="flex items-center gap-2 sm:gap-3 mb-8 sm:mb-10 lg:mb-12 px-2">
-          <div className="relative h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-3 mb-12 px-2">
+          <div className="relative h-8 w-8 flex-shrink-0">
             <Image
               src="/coin-f.svg"
               alt="Finance Logo"
@@ -121,7 +120,7 @@ export default function Navbar() {
               priority
             />
           </div>
-          <span className="font-display text-lg sm:text-xl font-semibold tracking-wide text-white uppercase">
+          <span className="font-display text-xl font-semibold tracking-wide text-white uppercase">
             Finance
           </span>
         </Link>
@@ -134,10 +133,10 @@ export default function Navbar() {
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className={`flex items-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-3 transition-all duration-200 uppercase text-xs sm:text-sm font-medium ${
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all duration-200 uppercase text-sm font-medium ${
                     active
-                      ? "bg-cyan-500 text-white"
-                      : "bg-gray-700 text-white hover:bg-cyan-600"
+                      ? "bg-white text-black font-semibold"
+                      : "bg-white/10 text-white hover:bg-white/20"
                   }`}
                 >
                   <span>{l.label.toUpperCase()}</span>
@@ -150,9 +149,9 @@ export default function Navbar() {
               href="https://drive.google.com/drive/folders/1fYgAQwcilhWWhJ4wDVInSbErAiw-H5Q9?usp=drive_link"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 bg-gray-700 text-white hover:bg-cyan-600 transition-all duration-200"
+              className="flex items-center gap-3 rounded-lg px-4 py-3 bg-white/10 text-white hover:bg-white/20 transition-all duration-200 text-sm font-medium"
             >
-              <span className="text-sm">{t("navbar.mobile")}</span>
+              <span>{t("navbar.mobile")}</span>
             </a>
           </li>
         </ul>
@@ -165,21 +164,21 @@ export default function Navbar() {
             </div>
           ) : me ? (
             <>
-              <div className="px-3 sm:px-4 py-2 mb-3">
-                <p className="text-white text-xs sm:text-sm font-financial break-words">
+              <div className="px-4 py-2 mb-3">
+                <p className="text-white text-sm font-financial">
                   {t("home.greeting", { name: me.name || me.email })}
                 </p>
                 {me.userCode && (
-                  <div className="mt-2 px-2 sm:px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 backdrop-blur-sm">
+                  <div className="mt-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 backdrop-blur-sm">
                     <p className="text-xs text-white/70 font-medium mb-0.5 uppercase">Tu ID:</p>
-                    <p className="text-xs sm:text-sm font-mono font-bold text-white break-all">{me.userCode}</p>
+                    <p className="text-sm font-mono font-bold text-white">{me.userCode}</p>
                   </div>
                 )}
               </div>
               
               {/* Tarjeta de racha */}
               {streak && (
-                <div className="px-3 sm:px-4 py-2 sm:py-3 mb-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 transition-all">
+                <div className="px-4 py-3 mb-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 transition-all">
                   <div className="mb-2">
                     <span className="text-xs font-semibold text-white uppercase">
                       {streak.status === 'active' 
@@ -192,8 +191,8 @@ export default function Navbar() {
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-baseline gap-1 sm:gap-2">
-                      <span className={`text-xl sm:text-2xl font-bold ${
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-2xl font-bold ${
                         streak.status === 'active'
                           ? 'text-cyan-300'
                           : streak.status === 'danger'
@@ -238,13 +237,13 @@ export default function Navbar() {
               <div className="space-y-2">
                 <Link
                   href="/settings"
-                  className="flex items-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 text-white hover:bg-cyan-600 transition-all duration-200 uppercase text-xs font-medium"
+                  className="flex items-center gap-3 rounded-lg px-4 py-2.5 bg-white/10 text-white hover:bg-white/20 transition-all duration-200 uppercase text-xs font-medium"
                 >
                   <span>{t("navbar.settings").toUpperCase()}</span>
                 </Link>
                 <button
                   onClick={logout}
-                  className="w-full flex items-center justify-center gap-2 sm:gap-3 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 bg-white text-black hover:bg-gray-100 transition-all duration-200 font-semibold shadow-md text-xs sm:text-sm"
+                  className="w-full flex items-center justify-center gap-3 rounded-lg px-4 py-2.5 bg-white text-black hover:bg-gray-100 transition-all duration-200 font-semibold shadow-md text-sm"
                 >
                   <span className="uppercase">{t("navbar.logout")}</span>
                 </button>

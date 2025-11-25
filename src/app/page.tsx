@@ -46,7 +46,7 @@ export default function Home() {
             <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold text-white px-4">
               {getGreeting()}
             </h1>
-            <p className="text-lg sm:text-xl text-white/80 px-4">
+            <p className="text-lg sm:text-xl text-white/90 px-4">
               {getWelcomeMessage()}
             </p>
       </div>
@@ -59,7 +59,7 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="card-glass p-5">
                 <h3 className="font-semibold text-white mb-2 font-financial-bold">{t("home.features.wallets.title")}</h3>
-                <p className="text-sm text-white/80 font-financial">
+                <p className="text-sm sm:text-base text-white/90 font-financial">
                   {t("home.features.wallets.description")}
                 </p>
               </div>
@@ -103,10 +103,10 @@ export default function Home() {
             <h1 className="font-display text-4xl sm:text-5xl font-semibold text-white mb-2">
               {t("home.welcomeTitle")}
             </h1>
-            <p className="text-lg text-white/80 mb-2 font-financial">
+            <p className="text-lg text-white/90 mb-2 font-financial">
               {t("home.welcomeSubtitle")}
             </p>
-            <p className="text-sm text-white/80 mb-6 font-financial">
+            <p className="text-sm sm:text-base text-white/90 mb-6 font-financial">
               {t("home.welcomeDescription")}
             </p>
       </div>
@@ -116,7 +116,7 @@ export default function Home() {
             <h2 className="text-2xl font-semibold text-white mb-4 text-center">
               {t("home.loginTitle")}
             </h2>
-            <p className="text-white/80 mb-6 text-center font-financial">
+            <p className="text-white/90 mb-6 text-center font-financial">
               {t("home.loginDescription")}
             </p>
             <div className="flex justify-center">
@@ -132,7 +132,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="card-glass p-6">
                 <h3 className="font-semibold text-white mb-3 text-center">{t("home.features.wallets.title")}</h3>
-                <p className="text-sm text-white/80 text-center">
+                <p className="text-sm sm:text-base text-white/90 text-center">
                   {t("home.features.wallets.description")}
                 </p>
               </div>
@@ -173,7 +173,7 @@ export default function Home() {
               <h3 className="text-2xl font-semibold text-white mb-4 text-center">
                 Características principales
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-white/80">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm sm:text-base text-white/90">
                 <div className="flex items-start gap-3">
                   <span className="text-white font-semibold">✓</span>
                   <span>Interfaz intuitiva y fácil de usar</span>

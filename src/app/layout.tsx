@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <Navbar />
 
       {/* Contenido con margen izquierdo para la navbar */}
-      <main className="lg:ml-64 p-3 sm:p-4 md:p-6 lg:p-8 relative z-10 pt-20 sm:pt-20 lg:pt-4">
+      <main className="lg:ml-64 p-4 sm:p-6 lg:p-8 relative z-10 pt-16 lg:pt-4">
         {children}
       </main>
     </LanguageProvider>

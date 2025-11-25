@@ -2,22 +2,15 @@
 @import "tailwindcss";
 
 @layer utilities {
-  /* Fondo inspirado en Elasti: gradiente teal oscuro a azul-gris claro */
+  /* Fondo oscuro moderno con imagen abstracta */
   .bg-app {
     min-height: 100vh;
-    background: linear-gradient(
-      135deg,
-      #0F4C5C 0%,
-      #1A5F6F 25%,
-      #2D7A8A 50%,
-      #4A9BA8 75%,
-      #6BB5C1 100%
-    );
+    background: #000000;
     position: relative;
     overflow-x: hidden;
   }
 
-  /* Capa superior con gradiente teal/azul suave */
+  /* Imagen de fondo abstracta */
   .bg-app::before {
     content: '';
     position: fixed;
@@ -25,26 +18,17 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-      radial-gradient(
-        ellipse at 20% 30%,
-        rgba(15, 76, 92, 0.8) 0%,
-        rgba(26, 95, 111, 0.6) 30%,
-        rgba(45, 122, 138, 0.4) 50%,
-        transparent 70%
-      ),
-      radial-gradient(
-        ellipse at 80% 70%,
-        rgba(74, 155, 168, 0.6) 0%,
-        rgba(107, 181, 193, 0.4) 30%,
-        rgba(139, 200, 210, 0.2) 50%,
-        transparent 70%
-      );
-    filter: blur(80px);
+    /* Carga la imagen de fondo - coloca background.jpg o background.png en /public */
+    background-image: url('/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.3;
     z-index: 0;
+    pointer-events: none;
   }
 
-  /* Capa de profundidad adicional */
+  /* Capa de overlay oscuro para mejorar legibilidad y profundidad */
   .bg-app::after {
     content: '';
     position: fixed;
@@ -53,33 +37,44 @@
     width: 100%;
     height: 100%;
     background: 
+      /* Formas abstractas oscuras adicionales para profundidad */
       radial-gradient(
-        ellipse at 50% 50%,
-        rgba(15, 76, 92, 0.4) 0%,
-        rgba(45, 122, 138, 0.3) 25%,
-        rgba(74, 155, 168, 0.2) 50%,
-        transparent 75%
+        ellipse 120% 70% at 10% 20%,
+        rgba(20, 20, 20, 0.4) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse 80% 120% at 90% 80%,
+        rgba(15, 15, 15, 0.3) 0%,
+        transparent 60%
+      ),
+      /* Overlay general para oscurecer y mejorar contraste */
+      linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0.2) 0%,
+        rgba(0, 0, 0, 0.4) 50%,
+        rgba(0, 0, 0, 0.3) 100%
       );
-    filter: blur(100px);
     z-index: 0;
+    pointer-events: none;
   }
 
-  /* Tarjetas con glassmorphism pronunciado estilo Elasti */
+  /* Tarjetas con diseño oscuro moderno */
   .card-glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 
-                0 2px 8px rgba(0, 0, 0, 0.1);
+    background: rgba(18, 18, 18, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   }
 
   /* Tarjetas más oscuras para contraste */
   .card-dark {
-    background: #242121;
-    border-radius: 1.25rem;
-    box-shadow: 0 8px 32px rgba(21, 21, 21, 0.15);
+    background: rgba(18, 18, 18, 0.9);
+    border-radius: 1rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* Degradado profesional azul/teal que combina con el fondo */
@@ -87,19 +82,20 @@
     background: linear-gradient(135deg, #42A5F5 0%, #26A69A 50%, #4FC3F7 100%);
   }
 
-  /* Botón principal sólido blanco estilo Elasti */
+  /* Botón principal sólido blanco */
   .btn-orange {
     background: #FFFFFF;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     color: #000000;
     font-weight: 600;
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
   }
 
   .btn-orange:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     background: #F5F5F5;
   }
 
@@ -112,13 +108,31 @@
     cursor: not-allowed;
   }
 
-  /* Texto con colores que combinan con el fondo teal/azul */
+  /* Texto con buena legibilidad */
   .text-warm {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.8);
   }
 
   .text-warm-dark {
     color: #FFFFFF;
+  }
+  
+  /* Mejorar legibilidad general */
+  body {
+    color: #FFFFFF;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.3;
+    color: #FFFFFF;
+  }
+  
+  p {
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   /* Animación para alertas */
@@ -137,43 +151,44 @@
     animation: slide-up 0.3s ease-out;
   }
 
-  /* Botones de acción estándar estilo Elasti */
+  /* Botones de acción estándar */
   .btn-edit {
-    @apply text-xs font-medium rounded-lg border border-white/20 px-3 py-1.5 text-white/80 hover:text-white hover:bg-white/10 transition;
+    @apply text-xs font-medium rounded-md border border-white/20 px-3 py-1.5 bg-white/5 text-white hover:text-white hover:bg-white/10 hover:border-white/30 transition;
   }
 
   .btn-delete {
-    @apply text-xs font-medium rounded-lg border border-white/20 px-3 py-1.5 text-white/80 hover:text-white hover:bg-white/10 transition;
+    @apply text-xs font-medium rounded-md border border-white/20 px-3 py-1.5 bg-white/5 text-white hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition;
   }
 
   /* Botones de acción pequeños (solo iconos) */
   .btn-edit-icon {
-    @apply text-xs font-medium text-white/70 hover:text-white transition;
+    @apply text-sm font-medium text-white/70 hover:text-white transition p-1 rounded;
   }
 
   .btn-delete-icon {
-    @apply text-xs font-medium text-white/70 hover:text-white transition;
+    @apply text-sm font-medium text-white/70 hover:text-red-400 transition p-1 rounded;
   }
 
-  /* Inputs estilo Elasti */
+  /* Inputs con diseño oscuro */
   input, select, textarea {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(30, 30, 30, 0.8);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
   }
 
   input::placeholder, textarea::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.4);
   }
 
   input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(40, 40, 40, 0.9);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
   }
 
   /* Estilos para elementos select y sus opciones */
@@ -196,22 +211,22 @@
   }
 
   select option {
-    background: rgba(15, 76, 92, 0.98);
+    background: rgba(20, 20, 20, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    color: white;
+    color: #FFFFFF;
     padding: 0.75rem 1rem;
     border: none;
   }
 
   select option:hover {
-    background: rgba(66, 165, 245, 0.4);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   select option:checked,
   select option:focus {
-    background: rgba(66, 165, 245, 0.5);
-    color: white;
+    background: rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
   }
 
   /* Tipografía mejorada para tema financiero */

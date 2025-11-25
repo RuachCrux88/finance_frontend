@@ -671,8 +671,7 @@ export default function WalletDetailPage() {
         <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500 flex items-center justify-center shadow-lg">
-                <span className="text-2xl">💰</span>
+              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shadow-lg border border-white/20">
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-display font-bold text-white mb-1">
@@ -680,10 +679,10 @@ export default function WalletDetailPage() {
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/60 border border-cyan-200 text-xs font-medium text-white">
-                    {wallet?.type === "GROUP" ? "👥 Compartida" : "👤 Personal"}
+                    {wallet?.type === "GROUP" ? "Compartida" : "Personal"}
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/60 border border-blue-200 text-xs font-medium text-white">
-                    💵 {currency}
+                    {currency}
                   </span>
                 </div>
               </div>
@@ -708,7 +707,7 @@ export default function WalletDetailPage() {
                   </span>
                   <button
                     onClick={copyInviteCode}
-                    className="ml-auto px-2 py-1 rounded-lg bg-cyan-500 text-white text-xs font-medium hover:bg-cyan-600 transition-all shadow-md hover:shadow-lg hover:scale-105"
+                    className="ml-auto px-2 py-1 rounded-lg bg-white text-black text-xs font-medium hover:bg-gray-100 transition-all shadow-md hover:shadow-lg"
                   >
                     📋 Copiar
                   </button>
@@ -722,19 +721,19 @@ export default function WalletDetailPage() {
                     setNewName(wallet?.name || "");
                     setShowEditNameModal(true);
                   }}
-                  className="group relative rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 hover:bg-blue-600 transition-all duration-300 hover:scale-105 active:scale-95"
+                  className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black shadow-md hover:shadow-lg hover:bg-gray-100 transition-all duration-200"
                 >
                   <span className="relative z-10 flex items-center gap-1.5">
-                    ✏️ Editar
+                    Editar
                   </span>
                 </button>
                 {!wallet?.isDefault && (
                   <button
                     onClick={() => setShowDeleteWalletModal(true)}
-                    className="group relative rounded-lg bg-blue-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 hover:bg-blue-600 transition-all duration-300 hover:scale-105 active:scale-95"
+                    className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black shadow-md hover:shadow-lg hover:bg-gray-100 transition-all duration-200"
                   >
                     <span className="relative z-10 flex items-center gap-1.5">
-                      🗑️ Eliminar
+                      Eliminar
                     </span>
                   </button>
                 )}
@@ -801,7 +800,7 @@ export default function WalletDetailPage() {
                         }}
                         className="btn-delete"
                       >
-                        ✕ {t("walletDetail.remove")}
+                        × {t("walletDetail.remove")}
                       </button>
                     )}
                   </div>
@@ -927,7 +926,7 @@ export default function WalletDetailPage() {
                                   className="text-xs text-amber-600 hover:text-amber-700"
                                   title={t("walletDetail.pauseGoal")}
                                 >
-                                  ⏸️
+                                  Pausar
                                 </button>
                               )}
                               {goal.status === "PAUSED" && (
@@ -947,7 +946,7 @@ export default function WalletDetailPage() {
                                   className="text-xs text-emerald-600 hover:text-emerald-700"
                                   title={t("walletDetail.reactivateGoal")}
                                 >
-                                  ▶️
+                                  Reanudar
                                 </button>
                               )}
                               <button
@@ -962,14 +961,14 @@ export default function WalletDetailPage() {
                                 className="btn-edit-icon"
                                 title={t("walletDetail.editGoal")}
                               >
-                                ✏️
+                                Editar
                               </button>
                               <button
                                 onClick={() => setShowDeleteGoalModal(goal.id)}
                                 className="btn-delete-icon"
                                 title={t("walletDetail.deleteGoal")}
                               >
-                                🗑️
+                                Eliminar
                               </button>
                               {goal.status === "ACTIVE" && (
                                 <button
@@ -977,7 +976,7 @@ export default function WalletDetailPage() {
                                   className="text-xs text-gray-600 hover:text-gray-700"
                                   title={t("walletDetail.cancelGoal")}
                                 >
-                                  ✕
+                                  ×
                                 </button>
                               )}
                             </div>
@@ -999,12 +998,12 @@ export default function WalletDetailPage() {
                       </div>
                       {goal.status === "PAUSED" && (
                         <span className="rounded-full bg-amber-500 px-3 py-1 text-xs text-white font-medium">
-                          ⏸️ Pausada
+                          Pausada
                         </span>
                       )}
                       {goal.status === "CANCELLED" && (
                         <span className="rounded-full bg-gray-500 px-3 py-1 text-xs text-white font-medium">
-                          ✕ Cancelada
+                          Cancelada
                         </span>
                       )}
                       {isAchieved && goal.status !== "CANCELLED" && (
@@ -1081,7 +1080,7 @@ export default function WalletDetailPage() {
                           }}
                           className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
                         >
-                          🎉 Marcar como cumplida
+                          Marcar como cumplida
                         </button>
                       </div>
                     )}
@@ -1115,7 +1114,7 @@ export default function WalletDetailPage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-white text-base">
-                                ✅ {goal.name}
+                                {goal.name}
                               </h3>
                               <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs text-white font-medium">
                                 Cumplida
@@ -1780,7 +1779,6 @@ export default function WalletDetailPage() {
         maxWidth="md"
       >
         <div className="text-center">
-          <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold text-white mb-2">
             ¡Felicitaciones!
           </h2>
@@ -1812,7 +1810,7 @@ export default function WalletDetailPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Esta acción no se puede deshacer
+              Advertencia: Esta acción no se puede deshacer
             </p>
             <p className="text-xs text-warm">
               Se eliminarán todas las transacciones, metas y datos asociados a esta billetera.
@@ -1842,9 +1840,9 @@ export default function WalletDetailPage() {
             </button>
             <button
               onClick={handleDeleteWallet}
-              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-200"
             >
-              🗑️ Eliminar billetera
+              Eliminar billetera
             </button>
           </div>
         </div>
@@ -1863,7 +1861,7 @@ export default function WalletDetailPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Confirmar acción
+              Confirmar acción
             </p>
             <p className="text-xs text-warm">
               El miembro será removido de esta billetera y perderá acceso a todas las transacciones y metas.
@@ -1895,7 +1893,7 @@ export default function WalletDetailPage() {
               onClick={handleRemoveMember}
               className="flex-1 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
             >
-              ✕ Remover miembro
+              × Remover miembro
             </button>
           </div>
         </div>
@@ -1911,7 +1909,7 @@ export default function WalletDetailPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Confirmar acción
+              Confirmar acción
             </p>
             <p className="text-xs text-warm">
               Perderás acceso a esta billetera y a todas sus transacciones y metas. Podrás volver a unirte si tienes el código de ingreso.
@@ -1938,9 +1936,9 @@ export default function WalletDetailPage() {
             </button>
             <button
               onClick={handleLeaveWallet}
-              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-200"
             >
-              🚪 Salirme
+              Salirme
             </button>
           </div>
         </div>
@@ -1956,7 +1954,7 @@ export default function WalletDetailPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-white/20 bg-white/10/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Esta acción no se puede deshacer
+              Advertencia: Esta acción no se puede deshacer
             </p>
             <p className="text-xs text-warm">
               Se eliminará la meta y todos sus datos asociados.
@@ -1998,9 +1996,9 @@ export default function WalletDetailPage() {
                   setShowDeleteGoalModal(null);
                 }
               }}
-              className="flex-1 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-200"
             >
-              🗑️ Eliminar meta
+              Eliminar meta
             </button>
           </div>
         </div>
@@ -2016,7 +2014,7 @@ export default function WalletDetailPage() {
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
             <p className="text-sm text-white font-medium mb-2">
-              ⚠️ Confirmar acción
+              Confirmar acción
             </p>
             <p className="text-xs text-warm">
               La meta será marcada como cancelada y no podrá recibir más aportes.

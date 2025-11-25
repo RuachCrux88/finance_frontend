@@ -180,7 +180,7 @@ export default function Dashboard() {
       
       if (remaining < 0) {
         setAlert({
-          message: `⚠️ Has superado tu meta de ahorro mensual. Te recomendamos gastar menos.`,
+          message: `Advertencia: Has superado tu meta de ahorro mensual. Te recomendamos gastar menos.`,
           type: 'warning'
         });
       } else {
@@ -633,8 +633,8 @@ export default function Dashboard() {
       setReminderToMark(null);
       setAlert({
         message: renew
-          ? "✅ Recordatorio marcado como pagado, agregado a tus gastos y renovado para el próximo mes"
-          : "✅ Recordatorio marcado como pagado y agregado a tus gastos",
+          ? "Recordatorio marcado como pagado, agregado a tus gastos y renovado para el próximo mes"
+          : "Recordatorio marcado como pagado y agregado a tus gastos",
         type: 'info'
       });
       setTimeout(() => setAlert(null), 5000);
@@ -737,11 +737,11 @@ export default function Dashboard() {
                     <span className={detail.type === "EXPENSE" ? "text-blue-300" : "text-cyan-300"}>
                       {detail.type === "EXPENSE" ? t("dashboard.expense") : t("dashboard.income")}: {fmt(detail.amount)}
                     </span>
-                    <span className="text-white/80"> • {detail.category}</span>
+                    <span className="text-white/90"> • {detail.category}</span>
                     {detail.description && (
-                      <span className="text-white/80"> • {detail.description}</span>
+                      <span className="text-white/90"> • {detail.description}</span>
                     )}
-                    <span className="text-white/80"> • {detail.wallet}</span>
+                    <span className="text-white/90"> • {detail.wallet}</span>
                   </div>
                 ))}
               </div>
@@ -758,13 +758,13 @@ export default function Dashboard() {
       {/* Encabezado + CTA */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("dashboard.title")}</h1>
-          <p className="text-white/80 text-xs sm:text-sm font-financial">{t("dashboard.subtitle")}</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("dashboard.title")}</h1>
+          <p className="text-white/90 text-sm sm:text-base font-financial">{t("dashboard.subtitle")}</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-center">
+        <div className="flex gap-2 flex-wrap items-center">
           {/* Selector de divisa */}
-          <div className="flex items-center gap-2 bg-white/10 rounded-lg border border-white/20 px-2 sm:px-3 py-1.5 sm:py-2">
-            <label className="text-xs text-white/80 font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg border border-white/20 px-3 py-2">
+            <label className="text-xs text-white/90 font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
             <select
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
@@ -779,19 +779,19 @@ export default function Dashboard() {
           </div>
           <Link
             href="/wallets"
-            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
+            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
             {t("dashboard.myWallets")}
           </Link>
           <Link
             href="/categories"
-            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
+            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
             {t("dashboard.myCategories")}
           </Link>
           <Link
             href="/transactions"
-            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
+            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
             + {t("dashboard.newTransaction")}
           </Link>
@@ -799,9 +799,9 @@ export default function Dashboard() {
       </div>
 
       {/* Layout en dos columnas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Columna izquierda: Gráfico de gastos e ingresos */}
-        <div className="card-glass p-3 sm:p-4 lg:p-5 relative overflow-hidden">
+        <div className="card-glass p-5 relative overflow-hidden">
           {/* Fondo decorativo con gradientes suaves */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
             <div className="absolute top-0 left-0 w-full h-full opacity-30">
@@ -823,15 +823,15 @@ export default function Dashboard() {
           </div>
           
           <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
-              <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-xl font-semibold text-white font-financial-bold">
                 {t("dashboard.financeDynamic")}
               </h3>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setGroupBy('day')}
                   disabled={!isAuthenticated}
-                  className={`flex-1 sm:flex-none rounded-lg px-2 sm:px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'day'
                       ? "btn-orange text-white"
                       : "border border-white/20 text-white hover:bg-white/10"
@@ -842,7 +842,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => setGroupBy('month')}
                   disabled={!isAuthenticated}
-                  className={`flex-1 sm:flex-none rounded-lg px-2 sm:px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'month'
                       ? "btn-orange text-white"
                       : "border border-white/20 text-white hover:bg-white/10"
@@ -853,9 +853,9 @@ export default function Dashboard() {
               </div>
             </div>
             {loading ? (
-              <div className="h-64 flex items-center justify-center text-white/80 text-sm font-financial">{t("dashboard.loadingChart")}</div>
+              <div className="h-64 flex items-center justify-center text-white/90 text-sm font-financial">{t("dashboard.loadingChart")}</div>
             ) : chartData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-white/80 text-sm font-financial">{t("dashboard.noChartData")}</div>
+              <div className="h-64 flex items-center justify-center text-white/90 text-sm font-financial">{t("dashboard.noChartData")}</div>
             ) : (
               <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
                 <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: isMobile ? -20 : 0, bottom: 0 }}>
@@ -947,11 +947,11 @@ export default function Dashboard() {
         </div>
 
         {/* Columna derecha: Stats */}
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-4">
           {/* KPIs / Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {converting ? (
-              <div className="card-glass p-4 text-center text-white/80 text-sm">
+              <div className="card-glass p-4 text-center text-white/90 text-sm">
                 {t("dashboard.convertingCurrencies")}
               </div>
             ) : (
@@ -976,7 +976,7 @@ export default function Dashboard() {
                   onClick={() => setShowSavingsBreakdownModal(true)}
                   className="card-glass p-5 cursor-pointer hover:bg-white/15 transition-all duration-200"
                 >
-                  <div className="text-xs font-medium mb-1.5 text-white/80">
+                  <div className="text-sm font-medium mb-1.5 text-white/90">
                     Dinero Ahorrado
                   </div>
                   <div className="text-3xl font-semibold mb-1 text-cyan-300">
@@ -999,9 +999,9 @@ export default function Dashboard() {
           </div>
 
           {/* Sección completa de metas personales */}
-          <div className="card-glass p-3 sm:p-4 lg:p-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
-              <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.savingsGoals")}</h3>
+          <div className="card-glass p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.savingsGoals")}</h3>
               <button
                 onClick={() => {
                   setSavingsGoal("");
@@ -1012,7 +1012,7 @@ export default function Dashboard() {
                   setShowSavingsModal(true);
                 }}
                 disabled={!isAuthenticated}
-                className={`w-full sm:w-auto btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 + {t("dashboard.createGoal")}
               </button>
@@ -1025,7 +1025,7 @@ export default function Dashboard() {
                 className={`px-4 py-2 text-sm font-medium transition ${
                   activeGoalTab === "pending"
                     ? "text-[#4FC3F7] border-b-2 border-[#4FC3F7]"
-                    : "text-white/80 hover:text-white"
+                    : "text-white/90 hover:text-white"
                 }`}
               >
                 {t("dashboard.pending")} ({userGoals.filter(g => g.status !== "ACHIEVED").length})
@@ -1040,7 +1040,7 @@ export default function Dashboard() {
                 className={`px-4 py-2 text-sm font-medium transition ${
                   activeGoalTab === "achieved"
                     ? "text-[#4FC3F7] border-b-2 border-[#4FC3F7]"
-                    : "text-white/80 hover:text-white"
+                    : "text-white/90 hover:text-white"
                 }`}
               >
                 {t("dashboard.achieved")} ({achievedGoals.length})
@@ -1051,7 +1051,7 @@ export default function Dashboard() {
             {activeGoalTab === "pending" && (
               <>
                 {userGoals.filter(g => g.status !== "ACHIEVED").length === 0 ? (
-                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/80 text-sm text-center font-financial">
+                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/90 text-sm text-center font-financial">
                     {t("dashboard.noPendingGoals")}
                   </div>
                 ) : (
@@ -1069,35 +1069,33 @@ export default function Dashboard() {
                           key={goal.id}
                           className="rounded-lg border border-white/20 bg-white/10 px-4 py-4"
                         >
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-white text-sm sm:text-base break-words">{goal.name}</h3>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-white text-lg">{goal.name}</h3>
                               </div>
                               {goal.description && (
-                                <p className="text-xs sm:text-sm text-white/80 mb-2 break-words">{goal.description}</p>
+                                <p className="text-sm text-white/90 mb-2">{goal.description}</p>
                               )}
-                              <p className="text-xs sm:text-sm text-white/80 break-words">
+                              <p className="text-sm text-white/90">
                                 {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
                               </p>
                               {goal.deadline && (
-                                <p className="text-xs text-white/80 mt-0.5">
+                                <p className="text-xs text-white/90 mt-1">
                                   Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-CO')}
                                 </p>
                               )}
                             </div>
-                            <div className="flex gap-2 flex-shrink-0">
-                              {goal.status === "PAUSED" && (
-                                <span className="rounded-full bg-amber-500 px-2 sm:px-3 py-1 text-xs text-white font-medium whitespace-nowrap">
-                                  ⏸️ Pausada
-                                </span>
-                              )}
-                              {isAchieved && goal.status !== "CANCELLED" && (
-                                <span className="rounded-full bg-cyan-400 px-2 sm:px-3 py-1 text-xs text-white font-medium whitespace-nowrap">
-                                  ✓ Lograda
-                                </span>
-                              )}
-                            </div>
+                            {goal.status === "PAUSED" && (
+                              <span className="rounded-full bg-amber-500 px-3 py-1 text-xs text-white font-medium">
+                                Pausada
+                              </span>
+                            )}
+                            {isAchieved && goal.status !== "CANCELLED" && (
+                              <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium">
+                                Lograda
+                              </span>
+                            )}
                           </div>
                           <div className="mt-3">
                             <div className="h-3 rounded-full bg-white/20 overflow-hidden">
@@ -1108,11 +1106,11 @@ export default function Dashboard() {
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mt-1.5">
-                              <p className="text-xs text-white/80">
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-xs sm:text-sm text-white/90">
                                 {percentage.toFixed(1)}% completado
                               </p>
-                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+                              <div className="flex items-center gap-2">
                                 <button
                                   onClick={async () => {
                                     setShowGoalDetailModal(goal.id);
@@ -1121,19 +1119,19 @@ export default function Dashboard() {
                                       setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
                                     } catch {}
                                   }}
-                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-white/20 transition"
+                                  className="text-xs sm:text-sm text-white/90 hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/20 transition"
                                 >
                                   {t("dashboard.viewDetails")}
                                 </button>
                                 <button
                                   onClick={() => handleEditGoal(goal)}
-                                  className="btn-edit text-xs px-2 sm:px-3 py-1 sm:py-1.5"
+                                  className="btn-edit"
                                 >
                                   {t("dashboard.editGoal")}
                                 </button>
                                 <button
                                   onClick={() => setShowDeleteGoalConfirm(goal.id)}
-                                  className="btn-delete text-xs px-2 sm:px-3 py-1 sm:py-1.5"
+                                  className="btn-delete"
                                 >
                                   {t("dashboard.deleteGoal")}
                                 </button>
@@ -1151,7 +1149,7 @@ export default function Dashboard() {
                                 }}
                                 className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
                               >
-                                💰 Aportar a esta meta
+                                Aportar a esta meta
                               </button>
                             </div>
                           )}
@@ -1162,7 +1160,7 @@ export default function Dashboard() {
                                 onClick={() => handleMarkAsAchieved(goal.id, goal.name)}
                                 className="w-full btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
                               >
-                                🎉 {t("dashboard.markAsAchieved")}
+                                {t("dashboard.markAsAchieved")}
                               </button>
                             </div>
                           )}
@@ -1178,7 +1176,7 @@ export default function Dashboard() {
             {activeGoalTab === "achieved" && (
               <>
                 {achievedGoals.length === 0 ? (
-                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/80 text-sm text-center font-financial">
+                  <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-6 text-white/90 text-sm text-center font-financial">
                     {t("dashboard.noAchievedGoals")}
                   </div>
                 ) : (
@@ -1196,20 +1194,23 @@ export default function Dashboard() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-white text-base">
-                                  ✅ {goal.name}
+                                  {goal.name}
                                 </h3>
+                                <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium ml-2">
+                                  Cumplida
+                                </span>
                                 <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium">
                                   Cumplida
                                 </span>
                               </div>
                               {goal.description && (
-                                <p className="text-sm text-white/80 mb-2">{goal.description}</p>
+                                <p className="text-sm text-white/90 mb-2">{goal.description}</p>
                               )}
-                              <p className="text-sm text-white/80">
+                              <p className="text-sm text-white/90">
                                 {t("dashboard.goalReached")}: {fmt(target, selectedCurrency)}
                               </p>
                               {goal.createdAt && (
-                                <p className="text-xs text-white/80 mt-1">
+                                <p className="text-xs text-white/90 mt-1">
                                   Cumplida: {new Date(goal.createdAt).toLocaleDateString('es-CO')}
                                 </p>
                               )}
@@ -1227,9 +1228,9 @@ export default function Dashboard() {
       </div>
 
       {/* Recordatorios de pago */}
-      <div className="card-glass p-3 sm:p-4 lg:p-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
-          <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.paymentReminders")}</h3>
+      <div className="card-glass p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.paymentReminders")}</h3>
           <button
             onClick={async () => {
               setReminderName("");
@@ -1251,15 +1252,15 @@ export default function Dashboard() {
               setShowReminderModal(true);
             }}
             disabled={!isAuthenticated}
-            className={`w-full sm:w-auto btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             + {t("dashboard.createReminder")}
           </button>
         </div>
         {loading ? (
-          <p className="text-white/80 text-sm">{t("common.loading")}</p>
+          <p className="text-white/90 text-sm">{t("common.loading")}</p>
         ) : reminders.filter(r => !r.isPaid).length === 0 ? (
-          <p className="text-white/80 text-sm font-financial">{t("dashboard.noReminders")}</p>
+          <p className="text-white/90 text-sm font-financial">{t("dashboard.noReminders")}</p>
         ) : (
           <div className="space-y-2">
             {reminders.filter(r => !r.isPaid).map((reminder) => {
@@ -1278,58 +1279,56 @@ export default function Dashboard() {
                         : "border-white/20 bg-white/10"
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
-                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1">
                       <input
                         type="checkbox"
                         checked={reminder.isPaid}
                         onChange={() => handleCheckboxChange(reminder.id)}
                         disabled={reminder.isPaid || !isAuthenticated}
-                        className="mt-1 w-4 h-4 rounded border-white/20 text-[#42A5F5] focus:ring-[#42A5F5] focus:ring-2 disabled:opacity-50 flex-shrink-0"
+                        className="mt-1 w-4 h-4 rounded border-white/20 text-[#42A5F5] focus:ring-[#42A5F5] focus:ring-2 disabled:opacity-50"
                       />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-medium text-white break-words">{reminder.name}</p>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white">{reminder.name}</p>
                         {reminder.description && (
-                          <p className="text-xs text-white/80 mt-0.5 break-words">{reminder.description}</p>
+                          <p className="text-sm text-white/90 mt-1">{reminder.description}</p>
                         )}
-                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
-                          <p className="text-xs text-white/80 break-words">
+                        <div className="flex items-center gap-2 mt-2">
+                          <p className="text-xs sm:text-sm text-white/90">
                             {reminder.wallet?.name || t("dashboard.wallet")} • 
                             {t("dashboard.due")}: {dueDate.toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                           {isOverdue && (
-                            <span className="text-xs font-medium text-blue-300 whitespace-nowrap">⚠️ {t("dashboard.overdue")}</span>
+                            <span className="text-xs font-medium text-blue-300">Advertencia: {t("dashboard.overdue")}</span>
                           )}
                           {!isOverdue && daysUntilDue <= 3 && (
-                            <span className="text-xs font-medium text-amber-600 whitespace-nowrap">⚠️ {t("dashboard.dueSoon")}</span>
+                            <span className="text-xs font-medium text-amber-600">Advertencia: {t("dashboard.dueSoon")}</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className="text-right sm:text-left">
-                        <p className="text-xs sm:text-sm font-semibold text-white">
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-white">
                           {fmt(Number(reminder.amount), reminder.wallet?.currency || "COP")}
                         </p>
                       </div>
-                      <div className="flex gap-1 sm:gap-2">
-                        <button
-                          onClick={() => handleEditReminder(reminder)}
-                          disabled={!isAuthenticated}
-                          className={`btn-edit-icon text-base sm:text-lg ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-                          title={t("dashboard.createReminder")}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteReminderConfirm(reminder.id)}
-                          disabled={!isAuthenticated}
-                          className={`btn-delete-icon text-base sm:text-lg ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-                          title={t("dashboard.deleteReminderConfirm")}
-                        >
-                          ✕
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleEditReminder(reminder)}
+                        disabled={!isAuthenticated}
+                        className={`btn-edit-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={t("dashboard.createReminder")}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteReminderConfirm(reminder.id)}
+                        disabled={!isAuthenticated}
+                        className={`btn-delete-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={t("dashboard.deleteReminderConfirm")}
+                      >
+                        ×
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1340,36 +1339,36 @@ export default function Dashboard() {
       </div>
 
       {/* Histórico de transacciones */}
-      <div className="card-glass p-3 sm:p-4 lg:p-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
-          <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.recentHistory")}</h3>
+      <div className="card-glass p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.recentHistory")}</h3>
           <Link
             href="/transactions"
-            className="text-xs sm:text-sm text-white/80 hover:text-white font-medium"
+            className="text-sm text-white/80 hover:text-white font-medium"
           >
             {t("dashboard.viewAll")} →
           </Link>
         </div>
         {loading ? (
-          <p className="text-white/80 text-sm">{t("common.loading")}</p>
+          <p className="text-white/90 text-sm">{t("common.loading")}</p>
         ) : history.length === 0 ? (
-          <p className="text-white/80 text-sm font-financial">{t("dashboard.noMovements")}</p>
+          <p className="text-white/90 text-sm font-financial">{t("dashboard.noMovements")}</p>
         ) : (
           <div className="space-y-2">
             {history.slice(0, 10).map((tx) => (
               <div
                 key={tx.id}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-white break-words">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white">
                     {tx.description || (tx.category ? translateCategory(tx.category, language).name : null) || t("dashboard.noDescription")}
                   </p>
-                  <p className="text-xs text-white/80 break-words">
+                  <p className="text-xs sm:text-sm text-white/90">
                     {tx.wallet?.name || t("dashboard.wallet")} • {new Date(tx.date).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                   </p>
                 </div>
-                <div className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                <div className={`text-sm font-semibold ${
                   tx.type === "EXPENSE" ? "text-blue-300" : "text-cyan-300"
                 }`}>
                   {tx.type === "EXPENSE" ? "-" : "+"}{fmt(Number(tx.amount))}
@@ -2033,7 +2032,7 @@ export default function Dashboard() {
                     Total: {fmt(parseFloat(contributeAmount), personalWallet?.currency || selectedCurrency)}
                     {exceedsBalance && walletBalance !== null && (
                       <span className="block mt-1">
-                        ⚠️ Excede tu balance disponible por {fmt(amount - walletBalance, personalWallet?.currency || selectedCurrency)}
+                        Advertencia: Excede tu balance disponible por {fmt(amount - walletBalance, personalWallet?.currency || selectedCurrency)}
                       </span>
                     )}
                   </p>
@@ -2146,7 +2145,10 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-white">✅ {goal.name}</p>
+                          <p className="text-sm font-medium text-white">{goal.name}</p>
+                          <span className="rounded-full bg-cyan-400 px-2 py-0.5 text-xs text-white font-medium ml-2">
+                            Cumplida
+                          </span>
                           <span className="rounded-full bg-cyan-400 px-2 py-0.5 text-xs text-white font-medium">
                             Cumplida
                           </span>
@@ -2190,18 +2192,18 @@ function Stat({
 }) {
   if (isNegative) {
     return (
-      <div className="bg-blue-500 text-white rounded-lg p-5 shadow-lg transform scale-105">
-        <div className="text-xs font-medium mb-1.5 opacity-90">{title}</div>
+      <div className="bg-white text-black rounded-lg p-5 shadow-lg">
+        <div className="text-sm font-medium mb-2">{title}</div>
         <div className="text-3xl font-semibold mb-1">{value}</div>
-        {hint ? <div className="text-xs opacity-80">{hint}</div> : null}
+        {hint ? <div className="text-sm opacity-90">{hint}</div> : null}
       </div>
     );
   }
   return (
-    <div className="card-glass p-4">
-      <div className="text-xs text-white/80 font-medium mb-1.5">{title}</div>
-      <div className="text-2xl font-semibold text-white mb-1">{value}</div>
-      {hint ? <div className="text-xs text-white/80">{hint}</div> : null}
+    <div className="card-glass p-5">
+      <div className="text-sm text-white/90 font-medium mb-2">{title}</div>
+      <div className="text-3xl font-semibold text-white mb-1">{value}</div>
+      {hint ? <div className="text-sm text-white/90">{hint}</div> : null}
     </div>
   );
 }

@@ -28,8 +28,8 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-3 sm:p-4">
-      <div className={`card-glass p-4 sm:p-5 lg:p-6 w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-y-auto shadow-2xl relative`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+      <div className={`card-glass p-4 sm:p-6 w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-y-auto shadow-2xl relative`}>
         {showCloseButton && (
           <button
             onClick={onClose}
