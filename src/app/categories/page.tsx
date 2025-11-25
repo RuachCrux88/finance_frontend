@@ -161,7 +161,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Crear nueva categoría */}
-      <div className="card-glass p-5">
+      <div className="card-glass p-3 sm:p-4 lg:p-5">
         <h2 className="text-lg font-semibold text-white mb-4">{t("categories.createCategory")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
@@ -195,7 +195,7 @@ export default function CategoriesPage() {
 
       {/* Categorías del sistema */}
       {systemCategories.length > 0 && (
-        <div className="card-glass p-5">
+        <div className="card-glass p-3 sm:p-4 lg:p-5">
           <h2 className="text-lg font-semibold text-white mb-4">
             {t("categories.predefinedCategories")} {type === "EXPENSE" ? `(${t("categories.expenses")})` : `(${t("categories.income")})`}
           </h2>
@@ -266,7 +266,7 @@ export default function CategoriesPage() {
 
       {/* Categorías del usuario */}
       {userCategories.length > 0 && (
-        <div className="card-glass p-5">
+        <div className="card-glass p-3 sm:p-4 lg:p-5">
           <h2 className="text-lg font-semibold text-white mb-4">{t("categories.userCategories")}</h2>
           <div className="space-y-2">
             {userCategories.map((cat) => (

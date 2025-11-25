@@ -261,7 +261,7 @@ export default function TransactionsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Registrar */}
-        <section className="card-glass p-5">
+        <section className="card-glass p-3 sm:p-4 lg:p-5">
           <h2 className="mb-4 text-lg font-semibold text-white font-financial-bold">{t("transactions.register")}</h2>
 
           <div className="grid gap-3">
@@ -542,7 +542,7 @@ export default function TransactionsPage() {
         </section>
 
         {/* Actividad */}
-        <section className="card-glass p-5">
+        <section className="card-glass p-3 sm:p-4 lg:p-5">
           <h2 className="mb-4 text-lg font-semibold text-white">{t("transactions.activity")}</h2>
           <ul className="space-y-2">
             {feed.length === 0 && (

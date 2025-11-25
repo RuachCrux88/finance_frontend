@@ -758,12 +758,12 @@ export default function Dashboard() {
       {/* Encabezado + CTA */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("dashboard.title")}</h1>
-          <p className="text-white/80 text-sm font-financial">{t("dashboard.subtitle")}</p>
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-white mb-1 font-financial-bold">{t("dashboard.title")}</h1>
+          <p className="text-white/80 text-xs sm:text-sm font-financial">{t("dashboard.subtitle")}</p>
         </div>
-        <div className="flex gap-2 flex-wrap items-center">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap items-stretch sm:items-center">
           {/* Selector de divisa */}
-          <div className="flex items-center gap-2 bg-white/10 rounded-lg border border-white/20 px-3 py-2">
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg border border-white/20 px-2 sm:px-3 py-1.5 sm:py-2">
             <label className="text-xs text-white/80 font-medium whitespace-nowrap">{t("wallets.currency")}:</label>
             <select
               value={selectedCurrency}
@@ -779,19 +779,19 @@ export default function Dashboard() {
           </div>
           <Link
             href="/wallets"
-            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
           >
             {t("dashboard.myWallets")}
           </Link>
           <Link
             href="/categories"
-            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
           >
             {t("dashboard.myCategories")}
           </Link>
           <Link
             href="/transactions"
-            className="inline-flex w-fit items-center justify-center btn-orange rounded-lg px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex w-full sm:w-fit items-center justify-center btn-orange rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white"
           >
             + {t("dashboard.newTransaction")}
           </Link>
@@ -799,9 +799,9 @@ export default function Dashboard() {
       </div>
 
       {/* Layout en dos columnas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
         {/* Columna izquierda: Gráfico de gastos e ingresos */}
-        <div className="card-glass p-5 relative overflow-hidden">
+        <div className="card-glass p-3 sm:p-4 lg:p-5 relative overflow-hidden">
           {/* Fondo decorativo con gradientes suaves */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
             <div className="absolute top-0 left-0 w-full h-full opacity-30">
@@ -823,15 +823,15 @@ export default function Dashboard() {
           </div>
           
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-white font-financial-bold">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">
                 {t("dashboard.financeDynamic")}
               </h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => setGroupBy('day')}
                   disabled={!isAuthenticated}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  className={`flex-1 sm:flex-none rounded-lg px-2 sm:px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'day'
                       ? "btn-orange text-white"
                       : "border border-white/20 text-white hover:bg-white/10"
@@ -842,7 +842,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => setGroupBy('month')}
                   disabled={!isAuthenticated}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  className={`flex-1 sm:flex-none rounded-lg px-2 sm:px-3 py-1 text-xs font-medium transition ${
                     groupBy === 'month'
                       ? "btn-orange text-white"
                       : "border border-white/20 text-white hover:bg-white/10"
@@ -947,9 +947,9 @@ export default function Dashboard() {
         </div>
 
         {/* Columna derecha: Stats */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* KPIs / Stats */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
             {converting ? (
               <div className="card-glass p-4 text-center text-white/80 text-sm">
                 {t("dashboard.convertingCurrencies")}
@@ -999,9 +999,9 @@ export default function Dashboard() {
           </div>
 
           {/* Sección completa de metas personales */}
-          <div className="card-glass p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.savingsGoals")}</h3>
+          <div className="card-glass p-3 sm:p-4 lg:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.savingsGoals")}</h3>
               <button
                 onClick={() => {
                   setSavingsGoal("");
@@ -1012,7 +1012,7 @@ export default function Dashboard() {
                   setShowSavingsModal(true);
                 }}
                 disabled={!isAuthenticated}
-                className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`w-full sm:w-auto btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 + {t("dashboard.createGoal")}
               </button>
@@ -1069,15 +1069,15 @@ export default function Dashboard() {
                           key={goal.id}
                           className="rounded-lg border border-white/20 bg-white/10 px-4 py-4"
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-white text-base">{goal.name}</h3>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-white text-sm sm:text-base break-words">{goal.name}</h3>
                               </div>
                               {goal.description && (
-                                <p className="text-sm text-white/80 mb-2">{goal.description}</p>
+                                <p className="text-xs sm:text-sm text-white/80 mb-2 break-words">{goal.description}</p>
                               )}
-                              <p className="text-sm text-white/80">
+                              <p className="text-xs sm:text-sm text-white/80 break-words">
                                 {fmt(current, selectedCurrency)} / {fmt(target, selectedCurrency)}
                               </p>
                               {goal.deadline && (
@@ -1086,16 +1086,18 @@ export default function Dashboard() {
                                 </p>
                               )}
                             </div>
-                            {goal.status === "PAUSED" && (
-                              <span className="rounded-full bg-amber-500 px-3 py-1 text-xs text-white font-medium">
-                                ⏸️ Pausada
-                              </span>
-                            )}
-                            {isAchieved && goal.status !== "CANCELLED" && (
-                              <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs text-white font-medium">
-                                ✓ Lograda
-                              </span>
-                            )}
+                            <div className="flex gap-2 flex-shrink-0">
+                              {goal.status === "PAUSED" && (
+                                <span className="rounded-full bg-amber-500 px-2 sm:px-3 py-1 text-xs text-white font-medium whitespace-nowrap">
+                                  ⏸️ Pausada
+                                </span>
+                              )}
+                              {isAchieved && goal.status !== "CANCELLED" && (
+                                <span className="rounded-full bg-cyan-400 px-2 sm:px-3 py-1 text-xs text-white font-medium whitespace-nowrap">
+                                  ✓ Lograda
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-3">
                             <div className="h-3 rounded-full bg-white/20 overflow-hidden">
@@ -1106,11 +1108,11 @@ export default function Dashboard() {
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <div className="flex items-center justify-between mt-1.5">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mt-1.5">
                               <p className="text-xs text-white/80">
                                 {percentage.toFixed(1)}% completado
                               </p>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
                                 <button
                                   onClick={async () => {
                                     setShowGoalDetailModal(goal.id);
@@ -1119,19 +1121,19 @@ export default function Dashboard() {
                                       setGoalProgress(prev => ({ ...prev, [goal.id]: prog || [] }));
                                     } catch {}
                                   }}
-                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/20 transition"
+                                  className="text-xs text-white/80 hover:text-white font-medium rounded-lg border border-white/20 px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-white/20 transition"
                                 >
                                   {t("dashboard.viewDetails")}
                                 </button>
                                 <button
                                   onClick={() => handleEditGoal(goal)}
-                                  className="btn-edit"
+                                  className="btn-edit text-xs px-2 sm:px-3 py-1 sm:py-1.5"
                                 >
                                   {t("dashboard.editGoal")}
                                 </button>
                                 <button
                                   onClick={() => setShowDeleteGoalConfirm(goal.id)}
-                                  className="btn-delete"
+                                  className="btn-delete text-xs px-2 sm:px-3 py-1 sm:py-1.5"
                                 >
                                   {t("dashboard.deleteGoal")}
                                 </button>
@@ -1225,9 +1227,9 @@ export default function Dashboard() {
       </div>
 
       {/* Recordatorios de pago */}
-      <div className="card-glass p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.paymentReminders")}</h3>
+      <div className="card-glass p-3 sm:p-4 lg:p-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+          <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.paymentReminders")}</h3>
           <button
             onClick={async () => {
               setReminderName("");
@@ -1249,7 +1251,7 @@ export default function Dashboard() {
               setShowReminderModal(true);
             }}
             disabled={!isAuthenticated}
-            className={`btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`w-full sm:w-auto btn-orange rounded-lg px-3 py-1.5 text-xs font-medium text-white ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             + {t("dashboard.createReminder")}
           </button>
@@ -1276,56 +1278,58 @@ export default function Dashboard() {
                         : "border-white/20 bg-white/10"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={reminder.isPaid}
                         onChange={() => handleCheckboxChange(reminder.id)}
                         disabled={reminder.isPaid || !isAuthenticated}
-                        className="mt-1 w-4 h-4 rounded border-white/20 text-[#42A5F5] focus:ring-[#42A5F5] focus:ring-2 disabled:opacity-50"
+                        className="mt-1 w-4 h-4 rounded border-white/20 text-[#42A5F5] focus:ring-[#42A5F5] focus:ring-2 disabled:opacity-50 flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{reminder.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-white break-words">{reminder.name}</p>
                         {reminder.description && (
-                          <p className="text-xs text-white/80 mt-0.5">{reminder.description}</p>
+                          <p className="text-xs text-white/80 mt-0.5 break-words">{reminder.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-white/80">
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
+                          <p className="text-xs text-white/80 break-words">
                             {reminder.wallet?.name || t("dashboard.wallet")} • 
                             {t("dashboard.due")}: {dueDate.toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                           </p>
                           {isOverdue && (
-                            <span className="text-xs font-medium text-blue-300">⚠️ {t("dashboard.overdue")}</span>
+                            <span className="text-xs font-medium text-blue-300 whitespace-nowrap">⚠️ {t("dashboard.overdue")}</span>
                           )}
                           {!isOverdue && daysUntilDue <= 3 && (
-                            <span className="text-xs font-medium text-amber-600">⚠️ {t("dashboard.dueSoon")}</span>
+                            <span className="text-xs font-medium text-amber-600 whitespace-nowrap">⚠️ {t("dashboard.dueSoon")}</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-white">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                      <div className="text-right sm:text-left">
+                        <p className="text-xs sm:text-sm font-semibold text-white">
                           {fmt(Number(reminder.amount), reminder.wallet?.currency || "COP")}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleEditReminder(reminder)}
-                        disabled={!isAuthenticated}
-                        className={`btn-edit-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-                        title={t("dashboard.createReminder")}
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteReminderConfirm(reminder.id)}
-                        disabled={!isAuthenticated}
-                        className={`btn-delete-icon ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
-                        title={t("dashboard.deleteReminderConfirm")}
-                      >
-                        ✕
-                      </button>
+                      <div className="flex gap-1 sm:gap-2">
+                        <button
+                          onClick={() => handleEditReminder(reminder)}
+                          disabled={!isAuthenticated}
+                          className={`btn-edit-icon text-base sm:text-lg ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                          title={t("dashboard.createReminder")}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteReminderConfirm(reminder.id)}
+                          disabled={!isAuthenticated}
+                          className={`btn-delete-icon text-base sm:text-lg ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+                          title={t("dashboard.deleteReminderConfirm")}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1336,12 +1340,12 @@ export default function Dashboard() {
       </div>
 
       {/* Histórico de transacciones */}
-      <div className="card-glass p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-white font-financial-bold">{t("dashboard.recentHistory")}</h3>
+      <div className="card-glass p-3 sm:p-4 lg:p-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+          <h3 className="font-display text-base sm:text-lg font-semibold text-white font-financial-bold">{t("dashboard.recentHistory")}</h3>
           <Link
             href="/transactions"
-            className="text-sm text-white/80 hover:text-white font-medium"
+            className="text-xs sm:text-sm text-white/80 hover:text-white font-medium"
           >
             {t("dashboard.viewAll")} →
           </Link>
@@ -1355,17 +1359,17 @@ export default function Dashboard() {
             {history.slice(0, 10).map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 py-2"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2"
               >
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-white break-words">
                     {tx.description || (tx.category ? translateCategory(tx.category, language).name : null) || t("dashboard.noDescription")}
                   </p>
-                  <p className="text-xs text-white/80">
+                  <p className="text-xs text-white/80 break-words">
                     {tx.wallet?.name || t("dashboard.wallet")} • {new Date(tx.date).toLocaleDateString(language === "es" ? "es-CO" : "en-US")}
                   </p>
                 </div>
-                <div className={`text-sm font-semibold ${
+                <div className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
                   tx.type === "EXPENSE" ? "text-blue-300" : "text-cyan-300"
                 }`}>
                   {tx.type === "EXPENSE" ? "-" : "+"}{fmt(Number(tx.amount))}

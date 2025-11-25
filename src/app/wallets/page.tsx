@@ -215,9 +215,9 @@ export default function WalletsPage() {
       </div>
 
       {/* Crear */}
-      <section className="card-glass p-5">
+      <section className="card-glass p-3 sm:p-4 lg:p-5">
         <h2 className="text-lg font-semibold text-white mb-4">{t("wallets.createWallet")}</h2>
-        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
             <label className="text-xs text-white/80 font-medium mb-1.5 block">{t("wallets.walletName")}</label>
             <input
